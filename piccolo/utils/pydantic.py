@@ -313,6 +313,18 @@ def create_pydantic_model(
 
         columns[column_name] = (_type, field)
 
+    # m2m fields
+    for item in table._meta.m2m_relationships:
+        column_name = item._meta.name
+        field = pydantic.Field(
+            json_schema_extra={
+                "extra": extra,
+                "format": "m2m",
+            },
+            **params,
+        )
+        columns[column_name] = (t.List[t.Any], field)
+
     pydantic_config = (
         pydantic_config.copy()
         if pydantic_config
