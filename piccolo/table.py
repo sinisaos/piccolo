@@ -292,7 +292,7 @@ class Table(metaclass=TableMetaclass):
         email_columns: t.List[Email] = []
         auto_update_columns: t.List[Column] = []
         primary_key: t.Optional[Column] = None
-        m2m_relationships: t.List[M2M] = []
+        m2m_relationships: t.List[t.Union[M2M, ReverseLookup]] = []
         constraints: t.List[Constraint] = []
 
         attribute_names = itertools.chain(
