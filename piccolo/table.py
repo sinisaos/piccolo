@@ -29,6 +29,7 @@ from piccolo.columns.m2m import (
 from piccolo.columns.readable import Readable
 from piccolo.columns.reference import LAZY_COLUMN_REFERENCES
 from piccolo.columns.reverse_lookup import ReverseLookup
+from piccolo.constraint import Constraint
 from piccolo.custom_types import TableInstance
 from piccolo.engine import Engine, engine_finder
 from piccolo.query import (
@@ -85,6 +86,7 @@ class TableMeta:
     primary_key: Column = field(default_factory=Column)
     json_columns: t.List[t.Union[JSON, JSONB]] = field(default_factory=list)
     secret_columns: t.List[Secret] = field(default_factory=list)
+    constraints: t.List[Constraint] = field(default_factory=list)
     auto_update_columns: t.List[Column] = field(default_factory=list)
     tags: t.List[str] = field(default_factory=list)
     help_text: t.Optional[str] = None
@@ -175,6 +177,15 @@ class TableMeta:
                     ) from e
 
         return column_object
+
+    def get_constraint_by_name(self, name: str) -> Constraint:
+        """
+        Returns a constraint which matches the given name.
+        """
+        for constraint in self.constraints:
+            if constraint._meta.name == name:
+                return constraint
+        raise ValueError(f"No matching constraint found with name == {name}")
 
     def get_auto_update_values(self) -> t.Dict[Column, t.Any]:
         """
@@ -281,7 +292,8 @@ class Table(metaclass=TableMetaclass):
         email_columns: t.List[Email] = []
         auto_update_columns: t.List[Column] = []
         primary_key: t.Optional[Column] = None
-        m2m_relationships: t.List[t.Union[M2M, ReverseLookup]] = []
+        m2m_relationships: t.List[M2M] = []
+        constraints: t.List[Constraint] = []
 
         attribute_names = itertools.chain(
             *[i.__dict__.keys() for i in reversed(cls.__mro__)]
@@ -334,6 +346,10 @@ class Table(metaclass=TableMetaclass):
                 attribute._meta._table = cls
                 m2m_relationships.append(attribute)
 
+            if isinstance(attribute, Constraint):
+                attribute._meta._name = attribute_name
+                constraints.append(attribute)
+
         if not primary_key:
             primary_key = cls._create_serial_primary_key()
             setattr(cls, "id", primary_key)
@@ -357,6 +373,7 @@ class Table(metaclass=TableMetaclass):
             help_text=help_text,
             _db=db,
             m2m_relationships=m2m_relationships,
+            constraints=constraints,
             schema=schema,
         )
 
