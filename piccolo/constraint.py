@@ -21,6 +21,11 @@ class Constraint:
     def ddl(self) -> str:
         raise NotImplementedError
 
+    @property
+    @abstractmethod
+    def sqlite_ddl(self) -> str:
+        raise NotImplementedError
+
 
 @dataclass
 class ConstraintMeta:
@@ -69,3 +74,7 @@ class UniqueConstraint(Constraint):
     def ddl(self) -> str:
         unique_columns_string = ", ".join(self.unique_columns)
         return f"UNIQUE ({unique_columns_string})"
+
+    @property
+    def sqlite_ddl(self) -> str:
+        return f"CREATE UNIQUE INDEX {self._meta.name}"

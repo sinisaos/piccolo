@@ -87,10 +87,17 @@ class Create(DDL):
                         if_not_exists=self.if_not_exists,
                     ).ddl
                 )
-
         for constraint in self.table._meta.constraints:
-            ddl.append(
-                f"ALTER TABLE {self.table._meta.get_formatted_tablename()} {AddConstraint(constraint=constraint).ddl}"  # noqa: E501
-            )
+            if self.table._meta.db.engine_type == "sqlite":
+                unique_columns_string = ", ".join(
+                    constraint._meta.params.get("unique_columns", None)
+                )
+                ddl.append(
+                    f"{AddConstraint(constraint=constraint).sqlite_ddl} ON {self.table._meta.tablename}({unique_columns_string})",  # noqa: E501
+                )
+            else:
+                ddl.append(
+                    f"ALTER TABLE {self.table._meta.get_formatted_tablename()} {AddConstraint(constraint=constraint).ddl}"  # noqa: E501
+                )
 
         return ddl

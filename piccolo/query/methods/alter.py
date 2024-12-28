@@ -188,6 +188,10 @@ class AddConstraint(AlterStatement):
     def ddl(self) -> str:
         return f"ADD CONSTRAINT {self.constraint._meta.name} {self.constraint.ddl}"  # noqa: E501
 
+    @property
+    def sqlite_ddl(self) -> str:
+        return f"{self.constraint.sqlite_ddl}"
+
 
 @dataclass
 class DropConstraint(AlterStatement):

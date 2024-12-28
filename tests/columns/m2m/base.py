@@ -8,6 +8,7 @@ from piccolo.columns.column_types import (
     Varchar,
 )
 from piccolo.columns.m2m import M2M
+from piccolo.constraint import UniqueConstraint
 from piccolo.engine.finder import engine_finder
 from piccolo.schema import SchemaManager
 from piccolo.table import Table, create_db_tables_sync, drop_db_tables_sync
@@ -33,6 +34,7 @@ class GenreToBand(Table):
     band = ForeignKey(Band)
     genre = ForeignKey(Genre)
     reason = Text(help_text="For testing additional columns on join tables.")
+    unique_band_genre = UniqueConstraint(["band", "genre"])
 
 
 class M2MBase:
@@ -321,6 +323,37 @@ class M2MBase:
         self.assertTrue(
             Genre.exists().where(Genre.name == "Punk Rock").run_sync()
         )
+
+        self.assertEqual(
+            GenreToBand.count()
+            .where(
+                GenreToBand.band.name == "Pythonistas",
+                GenreToBand.genre.name == "Punk Rock",
+            )
+            .run_sync(),
+            1,
+        )
+
+    def test_add_m2m_on_conflict(self):
+        """
+        Make sure we can't add duplicate items to the joining table.
+        """
+
+        band = Band.objects().get(Band.name == "Pythonistas").run_sync()
+        assert band is not None
+        band.add_m2m(Genre(name="Punk Rock"), m2m=Band.genres).run_sync()
+
+        self.assertEqual(
+            GenreToBand.count()
+            .where(
+                GenreToBand.band.name == "Pythonistas",
+                GenreToBand.genre.name == "Punk Rock",
+            )
+            .run_sync(),
+            1,
+        )
+        # check adding duplicates
+        band.add_m2m(Genre(id=4), m2m=Band.genres).run_sync()
 
         self.assertEqual(
             GenreToBand.count()

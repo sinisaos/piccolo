@@ -1,6 +1,7 @@
 from unittest import TestCase
 
 from piccolo.columns import Varchar
+from piccolo.constraint import UniqueConstraint
 from piccolo.schema import SchemaManager
 from piccolo.table import Table
 from tests.base import engines_only
@@ -94,4 +95,27 @@ class TestCreateWithPublicSchema(TestCase):
         self.assertIn(
             "band",
             SchemaManager().list_tables(schema_name="public").run_sync(),
+        )
+
+
+@engines_only("sqlite")
+class TestCreateWithUniqueConstraints(TestCase):
+    class Band(Table):
+        name = Varchar(required=True)
+        label = Varchar(required=True)
+        unique_name_label = UniqueConstraint(["name", "label"])
+
+    def tearDown(self) -> None:
+        self.Band.alter().drop_table(if_exists=True).run_sync()
+
+    def test_table_created(self):
+        """
+        Make sure that UniqueConstraint works on Sqlite create table.
+        """
+        Band = self.Band
+        Band.create_table().run_sync()
+
+        self.assertTrue(
+            [i._meta.name for i in Band._meta.constraints][0],
+            "unique_name_label",
         )
