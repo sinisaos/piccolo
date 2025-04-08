@@ -436,6 +436,7 @@ class Table(metaclass=TableMetaclass):
                     (value is None)
                     and (not column._meta.null)
                     and not _ignore_missing
+                    and not isinstance(column, ForeignKey)
                 ):
                     raise ValueError(f"{column._meta.name} wasn't provided")
 
