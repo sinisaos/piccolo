@@ -147,7 +147,7 @@ class Where(CombinableMixin):
         self,
         column: Column,
         value: Any = UNDEFINED,
-        values: Union[CustomIterable, Undefined] = UNDEFINED,
+        values: Union[CustomIterable, Undefined, Select] = UNDEFINED,
         operator: type[ComparisonOperator] = ComparisonOperator,
     ) -> None:
         """

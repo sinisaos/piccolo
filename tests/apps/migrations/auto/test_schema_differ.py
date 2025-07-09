@@ -506,7 +506,7 @@ class TestSchemaDiffer(TestCase):
         )
         name_genre_unique_constraint._meta.name = "unique_name_genre"
 
-        schema: t.List[DiffableTable] = [
+        schema: list[DiffableTable] = [
             DiffableTable(
                 class_name="Band",
                 tablename="band",
@@ -514,7 +514,7 @@ class TestSchemaDiffer(TestCase):
                 constraints=[name_genre_unique_constraint],
             )
         ]
-        schema_snapshot: t.List[DiffableTable] = []
+        schema_snapshot: list[DiffableTable] = []
 
         schema_differ = SchemaDiffer(
             schema=schema, schema_snapshot=schema_snapshot, auto_input="y"
@@ -563,7 +563,7 @@ class TestSchemaDiffer(TestCase):
         )
         name_genre_unique_constraint._meta.name = "unique_name_genre"
 
-        schema: t.List[DiffableTable] = [
+        schema: list[DiffableTable] = [
             DiffableTable(
                 class_name="Band",
                 tablename="band",
@@ -574,7 +574,7 @@ class TestSchemaDiffer(TestCase):
                 ],
             )
         ]
-        schema_snapshot: t.List[DiffableTable] = [
+        schema_snapshot: list[DiffableTable] = [
             DiffableTable(
                 class_name="Band",
                 tablename="band",
@@ -611,7 +611,7 @@ class TestSchemaDiffer(TestCase):
         )
         name_genre_unique_constraint._meta.name = "unique_name_genre"
 
-        schema: t.List[DiffableTable] = [
+        schema: list[DiffableTable] = [
             DiffableTable(
                 class_name="Band",
                 tablename="band",
@@ -619,7 +619,7 @@ class TestSchemaDiffer(TestCase):
                 constraints=[name_unique_constraint],
             )
         ]
-        schema_snapshot: t.List[DiffableTable] = [
+        schema_snapshot: list[DiffableTable] = [
             DiffableTable(
                 class_name="Band",
                 tablename="band",

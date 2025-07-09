@@ -616,9 +616,9 @@ class SchemaDiffer:
 
     @property
     def add_constraints(self) -> AlterStatements:
-        response: t.List[str] = []
-        extra_imports: t.List[Import] = []
-        extra_definitions: t.List[Definition] = []
+        response: list[str] = []
+        extra_imports: list[Import] = []
+        extra_definitions: list[Definition] = []
         for table in self.schema:
             snapshot_table = self._get_snapshot_table(table.class_name)
             if snapshot_table:
@@ -809,17 +809,7 @@ class SchemaDiffer:
         )
 
     @property
-<<<<<<< HEAD
     def new_table_constraints(self) -> AlterStatements:
-        new_tables: t.List[DiffableTable] = list(
-            set(self.schema) - set(self.schema_snapshot)
-        )
-
-        response: t.List[str] = []
-        extra_imports: t.List[Import] = []
-        extra_definitions: t.List[Definition] = []
-=======
-    def new_table_composite_indexes(self) -> AlterStatements:
         new_tables: list[DiffableTable] = list(
             set(self.schema) - set(self.schema_snapshot)
         )
@@ -827,7 +817,6 @@ class SchemaDiffer:
         response: list[str] = []
         extra_imports: list[Import] = []
         extra_definitions: list[Definition] = []
->>>>>>> bea7ecd9f8c37b921acaced5b88715de2e64be0e
         for table in new_tables:
             if (
                 table.class_name
@@ -835,7 +824,6 @@ class SchemaDiffer:
             ):
                 continue
 
-<<<<<<< HEAD
             for constraint in table.constraints:
                 extra_imports.append(
                     Import(
@@ -844,16 +832,6 @@ class SchemaDiffer:
                         expect_conflict_with_global_name=getattr(
                             UniqueGlobalNames,
                             f"COLUMN_{constraint.__class__.__name__.upper()}",
-=======
-            for composite_index in table.composite_indexes:
-                extra_imports.append(
-                    Import(
-                        module=composite_index.__class__.__module__,
-                        target=composite_index.__class__.__name__,
-                        expect_conflict_with_global_name=getattr(
-                            UniqueGlobalNames,
-                            f"COLUMN_{composite_index.__class__.__name__.upper()}",  # noqa: E501
->>>>>>> bea7ecd9f8c37b921acaced5b88715de2e64be0e
                             None,
                         ),
                     )
@@ -864,11 +842,49 @@ class SchemaDiffer:
                 )
 
                 response.append(
-<<<<<<< HEAD
                     f"manager.add_constraint(table_class_name='{table.class_name}', tablename='{table.tablename}', constraint_name='{constraint._meta.name}', constraint_class={constraint.__class__.__name__}, params={constraint._meta.params}, schema={schema_str})"  # noqa: E501
-=======
+                )
+        return AlterStatements(
+            statements=response,
+            extra_imports=extra_imports,
+            extra_definitions=extra_definitions,
+        )
+
+    @property
+    def new_table_composite_indexes(self) -> AlterStatements:
+        new_tables: list[DiffableTable] = list(
+            set(self.schema) - set(self.schema_snapshot)
+        )
+
+        response: list[str] = []
+        extra_imports: list[Import] = []
+        extra_definitions: list[Definition] = []
+        for table in new_tables:
+            if (
+                table.class_name
+                in self.rename_tables_collection.new_class_names
+            ):
+                continue
+
+            for composite_index in table.composite_indexes:
+                extra_imports.append(
+                    Import(
+                        module=composite_index.__class__.__module__,
+                        target=composite_index.__class__.__name__,
+                        expect_conflict_with_global_name=getattr(
+                            UniqueGlobalNames,
+                            f"COLUMN_{composite_index.__class__.__name__.upper()}",  # noqa: E501
+                            None,
+                        ),
+                    )
+                )
+
+                schema_str = (
+                    "None" if table.schema is None else f'"{table.schema}"'
+                )
+
+                response.append(
                     f"manager.add_composite_index(table_class_name='{table.class_name}', tablename='{table.tablename}', composite_index_name='{composite_index._meta.name}', composite_index_class={composite_index.__class__.__name__}, params={composite_index._meta.params}, schema={schema_str})"  # noqa: E501
->>>>>>> bea7ecd9f8c37b921acaced5b88715de2e64be0e
                 )
         return AlterStatements(
             statements=response,
@@ -888,22 +904,16 @@ class SchemaDiffer:
             "Renamed tables": self.rename_tables,
             "Tables which changed schema": self.change_table_schemas,
             "Created table columns": self.new_table_columns,
-<<<<<<< HEAD
             "Created table constraints": self.new_table_constraints,
-=======
             "Created table composite indexes": self.new_table_composite_indexes,  # noqa: E501
->>>>>>> bea7ecd9f8c37b921acaced5b88715de2e64be0e
             "Dropped columns": self.drop_columns,
             "Columns added to existing tables": self.add_columns,
             "Renamed columns": self.rename_columns,
             "Altered columns": self.alter_columns,
-<<<<<<< HEAD
             "Dropped constraints": self.drop_constraints,
             "Constraints added to existing tables": self.add_constraints,
-=======
             "Dropped composite index": self.drop_composite_indexes,
             "Composite index added to existing tables": self.add_composite_indexes,  # noqa: E501
->>>>>>> bea7ecd9f8c37b921acaced5b88715de2e64be0e
         }
 
         for message, statements in alter_statements.items():

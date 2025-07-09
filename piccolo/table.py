@@ -29,12 +29,12 @@ from piccolo.columns.m2m import (
 )
 from piccolo.columns.readable import Readable
 from piccolo.columns.reference import LAZY_COLUMN_REFERENCES
-from piccolo.constraint import Constraint
 from piccolo.columns.reverse_lookup import (
     ReverseLookup,
     ReverseLookupGetRelated,
 )
 from piccolo.composite_index import Composite
+from piccolo.constraint import Constraint
 from piccolo.custom_types import TableInstance
 from piccolo.engine import Engine, engine_finder
 from piccolo.query import (
@@ -92,6 +92,7 @@ class TableMeta:
     json_columns: list[Union[JSON, JSONB]] = field(default_factory=list)
     secret_columns: list[Secret] = field(default_factory=list)
     composite_indexes: list[Composite] = field(default_factory=list)
+    constraints: list[Constraint] = field(default_factory=list)
     auto_update_columns: list[Column] = field(default_factory=list)
     tags: list[str] = field(default_factory=list)
     help_text: Optional[str] = None

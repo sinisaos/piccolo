@@ -2,8 +2,8 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 from piccolo.columns.base import Column
-from piccolo.constraint import Constraint
 from piccolo.composite_index import Composite
+from piccolo.constraint import Constraint
 
 
 @dataclass
@@ -73,6 +73,8 @@ class AddConstraint:
     constraint_name: str
     constraint_class_name: str
     constraint_class: type[Constraint]
+    params: dict[str, Any]
+    schema: Optional[str] = None
 
 
 @dataclass

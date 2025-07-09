@@ -5,19 +5,17 @@ from typing import Any, Optional
 
 from piccolo.apps.migrations.auto.operations import (
     AddColumn,
+    AddCompositeIndex,
     AddConstraint,
     AlterColumn,
     DropColumn,
-    DropConstraint,
-    AddCompositeIndex,
-    AlterColumn,
-    DropColumn,
     DropCompositeIndex,
+    DropConstraint,
 )
 from piccolo.apps.migrations.auto.serialisation import serialise_params
 from piccolo.columns.base import Column
-from piccolo.constraint import Constraint
 from piccolo.composite_index import Composite
+from piccolo.constraint import Constraint
 from piccolo.table import Table, create_table_class
 
 
@@ -115,8 +113,10 @@ class ConstraintComparison:
     def __eq__(self, value) -> bool:
         if isinstance(value, ConstraintComparison):
             return self.constraint._meta.name == value.constraint._meta.name
+        return False
 
 
+@dataclass
 class CompositeIndexComparison:
     composite_index: Composite
 
@@ -249,6 +249,7 @@ class DiffableTable:
                 constraint_class_name=i.constraint.__class__.__name__,
                 constraint_class=i.constraint.__class__,
                 params=i.constraint._meta.params,
+                schema=self.schema,
             )
             for i in sorted(
                 {
@@ -314,14 +315,14 @@ class DiffableTable:
             )
             for i in sorted(
                 {
-                    ConstraintComparison(constraint=constraint)
-                    for constraint in value.constraints
+                    CompositeIndexComparison(composite_index=composite_index)
+                    for composite_index in value.composite_indexes
                 }
                 - {
-                    ConstraintComparison(constraint=constraint)
-                    for constraint in self.constraints
+                    CompositeIndexComparison(composite_index=composite_index)
+                    for composite_index in self.composite_indexes
                 },
-                key=lambda x: x.constraint._meta.name,
+                key=lambda x: x.composite_index._meta.name,
             )
         ]
 
