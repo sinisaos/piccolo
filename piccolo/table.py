@@ -29,6 +29,7 @@ from piccolo.columns.m2m import (
 )
 from piccolo.columns.readable import Readable
 from piccolo.columns.reference import LAZY_COLUMN_REFERENCES
+from piccolo.constraint import Constraint
 from piccolo.custom_types import TableInstance
 from piccolo.engine import Engine, engine_finder
 from piccolo.query import (
@@ -174,6 +175,15 @@ class TableMeta:
 
         return column_object
 
+    def get_constraint_by_name(self, name: str) -> Constraint:
+        """
+        Returns a constraint which matches the given name.
+        """
+        for constraint in self.constraints:
+            if constraint._meta.name == name:
+                return constraint
+        raise ValueError(f"No matching constraint found with name == {name}")
+
     def get_auto_update_values(self) -> dict[Column, Any]:
         """
         If columns have ``auto_update`` defined, then we retrieve these values.
@@ -280,6 +290,7 @@ class Table(metaclass=TableMetaclass):
         auto_update_columns: list[Column] = []
         primary_key: Optional[Column] = None
         m2m_relationships: list[M2M] = []
+        constraints: list[Constraint] = []
 
         attribute_names = itertools.chain(
             *[i.__dict__.keys() for i in reversed(cls.__mro__)]
@@ -332,6 +343,10 @@ class Table(metaclass=TableMetaclass):
                 attribute._meta._table = cls
                 m2m_relationships.append(attribute)
 
+            if isinstance(attribute, Constraint):
+                attribute._meta._name = attribute_name
+                constraints.append(attribute)
+
         if not primary_key:
             primary_key = cls._create_serial_primary_key()
             setattr(cls, "id", primary_key)
@@ -355,6 +370,7 @@ class Table(metaclass=TableMetaclass):
             help_text=help_text,
             _db=db,
             m2m_relationships=m2m_relationships,
+            constraints=constraints,
             schema=schema,
         )
 
