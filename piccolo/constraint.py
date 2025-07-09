@@ -58,6 +58,23 @@ class UniqueConstraint(Constraint):
         **kwargs,
     ) -> None:
         """
+        Add a unique constraints to multiple columns. For example::
+
+            from piccolo.columns import Varchar, Boolean
+            from piccolo.constraint import UniqueConstraint
+            from piccolo.table import Table
+
+            class Band(Table):
+                name = Text(required=True)
+                label = Text(required=True)
+                unique_name_label = UniqueConstraint(["name", "label"])
+
+        This way we create unique constraints ``unique_name_label``
+        on ``Band`` table.
+
+        To drop the unique constraints, simply delete or comment out
+        the unique constraints argument and perform another migration.
+
         :param unique_columns:
             The table columns that should be unique together.
         """
