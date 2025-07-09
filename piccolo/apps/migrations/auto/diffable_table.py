@@ -10,10 +10,7 @@ from piccolo.apps.migrations.auto.operations import (
     DropColumn,
     DropConstraint,
 )
-from piccolo.apps.migrations.auto.serialisation import (
-    deserialise_params,
-    serialise_params,
-)
+from piccolo.apps.migrations.auto.serialisation import serialise_params
 from piccolo.columns.base import Column
 from piccolo.constraint import Constraint
 from piccolo.table import Table, create_table_class
@@ -195,6 +192,10 @@ class DiffableTable:
                 serialise_params(existing_column._meta.params).params,
             )
 
+            params = {
+                key: column._meta.params.get(key) for key, _ in delta.items()
+            }
+
             old_params = {
                 key: existing_column._meta.params.get(key)
                 for key, _ in delta.items()
@@ -207,7 +208,7 @@ class DiffableTable:
                         tablename=self.tablename,
                         column_name=column._meta.name,
                         db_column_name=column._meta.db_column_name,
-                        params=deserialise_params(delta),
+                        params=params,
                         old_params=old_params,
                         column_class=column.__class__,
                         old_column_class=existing_column.__class__,
