@@ -3,6 +3,7 @@ from typing import Any, Optional
 
 from piccolo.columns.base import Column
 from piccolo.constraint import Constraint
+from piccolo.composite_index import Composite
 
 
 @dataclass
@@ -72,13 +73,29 @@ class AddConstraint:
     constraint_name: str
     constraint_class_name: str
     constraint_class: type[Constraint]
-    params: dict[str, Any]
-    schema: Optional[str] = None
 
 
 @dataclass
 class DropConstraint:
     table_class_name: str
     constraint_name: str
+    tablename: str
+    schema: Optional[str] = None
+
+
+@dataclass
+class AddCompositeIndex:
+    table_class_name: str
+    composite_index_name: str
+    composite_index_class_name: str
+    composite_index_class: type[Composite]
+    params: dict[str, Any]
+    schema: Optional[str] = None
+
+
+@dataclass
+class DropCompositeIndex:
+    table_class_name: str
+    composite_index_name: str
     tablename: str
     schema: Optional[str] = None

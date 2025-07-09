@@ -111,6 +111,7 @@ class SchemaSnapshot:
                                 rename_column.new_db_column_name
                             )
 
+<<<<<<< HEAD
                 add_constraints = (
                     manager.add_constraints.constraints_for_table_class_name(
                         table.class_name
@@ -128,6 +129,24 @@ class SchemaSnapshot:
                         i
                         for i in table.constraints
                         if i._meta.name != drop_constraint.constraint_name
+=======
+                add_composite_indexes = manager.add_composite_indexes.composite_indexes_for_table_class_name(  # noqa: E501
+                    table.class_name
+                )
+                table.composite_indexes.extend(add_composite_indexes)
+
+                drop_composite_indexes = (
+                    manager.drop_composite_indexes.for_table_class_name(
+                        table.class_name
+                    )
+                )
+                for drop_composite_index in drop_composite_indexes:
+                    table.composite_indexes = [
+                        i
+                        for i in table.composite_indexes
+                        if i._meta.name
+                        != drop_composite_index.composite_index_name
+>>>>>>> bea7ecd9f8c37b921acaced5b88715de2e64be0e
                     ]
 
         return tables

@@ -193,7 +193,11 @@ class AutoMigrationManager(BaseMigrationManager):
                 class_name=i.__name__,
                 tablename=i._meta.tablename,
                 columns=i._meta.non_default_columns,
+<<<<<<< HEAD
                 constraints=i._meta.constraints,
+=======
+                composite_indexes=i._meta.composite_indexes,
+>>>>>>> bea7ecd9f8c37b921acaced5b88715de2e64be0e
                 schema=i._meta.schema,
             )
             for i in app_config.table_classes
