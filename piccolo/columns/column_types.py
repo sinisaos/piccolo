@@ -2811,7 +2811,7 @@ class Array(Column):
         else:
             raise ValueError("Unrecognised engine type")
 
-    def cat(self, value: Union[Any, list[Any]]) -> QueryString:
+    def cat(self, value: list[Any]) -> QueryString:
         """
         Used in an ``update`` query to concatenate two arrays.
 
@@ -2829,6 +2829,8 @@ class Array(Column):
             ...     Ticket.seat_numbers: Ticket.seat_numbers + [1000]
             ... }).where(Ticket.id == 1)
 
+        .. note:: Postgres / CockroachDB only
+
         """
         from piccolo.query.functions.array import ArrayCat
 
@@ -2836,13 +2838,15 @@ class Array(Column):
 
     def remove(self, value: Any) -> QueryString:
         """
-        Used in an ``update`` query to remove item from an array.
+        Used in an ``update`` query to remove an item from an array.
 
         .. code-block:: python
 
             >>> await Ticket.update({
             ...     Ticket.seat_numbers: Ticket.seat_numbers.remove(1000)
             ... }).where(Ticket.id == 1)
+
+        .. note:: Postgres / CockroachDB only
 
         """
         from piccolo.query.functions.array import ArrayRemove
@@ -2851,13 +2855,15 @@ class Array(Column):
 
     def prepend(self, value: Any) -> QueryString:
         """
-        Used in an ``update`` query to prepend item to an array.
+        Used in an ``update`` query to prepend an item to an array.
 
         .. code-block:: python
 
             >>> await Ticket.update({
             ...     Ticket.seat_numbers: Ticket.seat_numbers.prepend(1000)
             ... }).where(Ticket.id == 1)
+
+        .. note:: Postgres / CockroachDB only
 
         """
         from piccolo.query.functions.array import ArrayPrepend
@@ -2866,13 +2872,15 @@ class Array(Column):
 
     def append(self, value: Any) -> QueryString:
         """
-        Used in an ``update`` query to append item to an array.
+        Used in an ``update`` query to append an item to an array.
 
         .. code-block:: python
 
             >>> await Ticket.update({
             ...     Ticket.seat_numbers: Ticket.seat_numbers.append(1000)
             ... }).where(Ticket.id == 1)
+
+        .. note:: Postgres / CockroachDB only
 
         """
         from piccolo.query.functions.array import ArrayAppend
@@ -2890,12 +2898,14 @@ class Array(Column):
             ...     Ticket.seat_numbers: Ticket.seat_numbers.replace(1000, 500)
             ... }).where(Ticket.id == 1)
 
+        .. note:: Postgres / CockroachDB only
+
         """
         from piccolo.query.functions.array import ArrayReplace
 
         return ArrayReplace(self, old_value=old_value, new_value=new_value)
 
-    def __add__(self, value: Union[Any, list[Any]]) -> QueryString:
+    def __add__(self, value: list[Any]) -> QueryString:
         return self.cat(value)
 
     ###########################################################################
