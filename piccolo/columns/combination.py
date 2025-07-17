@@ -147,7 +147,7 @@ class Where(CombinableMixin):
         self,
         column: Column,
         value: Any = UNDEFINED,
-        values: Union[CustomIterable, Undefined, Select] = UNDEFINED,
+        values: Union[CustomIterable, Undefined, QueryString] = UNDEFINED,
         operator: type[ComparisonOperator] = ComparisonOperator,
     ) -> None:
         """
@@ -159,7 +159,7 @@ class Where(CombinableMixin):
         self.column = column
 
         self.value = value if value == UNDEFINED else self.clean_value(value)
-        if values == UNDEFINED:
+        if (values == UNDEFINED) or isinstance(values, QueryString):
             self.values = values
         elif isinstance(values, Select):
             self.values = values
@@ -198,6 +198,9 @@ class Where(CombinableMixin):
         from piccolo.query.methods.select import Select
 
         values = self.values
+
+        if isinstance(values, QueryString):
+            return values
 
         if isinstance(values, Undefined):
             raise ValueError("values is undefined")
