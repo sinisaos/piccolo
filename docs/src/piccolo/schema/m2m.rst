@@ -34,6 +34,7 @@ We create it in Piccolo like this:
         Varchar
     )
     from piccolo.columns.m2m import M2M
+    from piccolo.constraint import UniqueConstraint
     from piccolo.table import Table
 
 
@@ -51,6 +52,8 @@ We create it in Piccolo like this:
     class GenreToBand(Table):
         band = ForeignKey(Band)
         genre = ForeignKey(Genre)
+        # prevents duplicate entries
+        unique_band_genre = UniqueConstraint(["band", "genre"])
 
 
 .. note::
