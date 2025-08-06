@@ -16,7 +16,6 @@ from piccolo.columns.column_types import (
     Email,
     ForeignKey,
     ReferencedTable,
-    Secret,
     Serial,
 )
 from piccolo.columns.defaults.base import Default
@@ -90,9 +89,7 @@ class TableMeta:
     foreign_key_columns: list[ForeignKey] = field(default_factory=list)
     primary_key: Column = field(default_factory=Column)
     json_columns: list[Union[JSON, JSONB]] = field(default_factory=list)
-    secret_columns: list[Secret] = field(default_factory=list)
-    composite_indexes: list[Composite] = field(default_factory=list)
-    constraints: list[Constraint] = field(default_factory=list)
+    secret_columns: list[Column] = field(default_factory=list)
     auto_update_columns: list[Column] = field(default_factory=list)
     tags: list[str] = field(default_factory=list)
     help_text: Optional[str] = None
@@ -304,7 +301,7 @@ class Table(metaclass=TableMetaclass):
         non_default_columns: list[Column] = []
         array_columns: list[Array] = []
         foreign_key_columns: list[ForeignKey] = []
-        secret_columns: list[Secret] = []
+        secret_columns: list[Column] = []
         json_columns: list[Union[JSON, JSONB]] = []
         email_columns: list[Email] = []
         auto_update_columns: list[Column] = []
@@ -347,14 +344,14 @@ class Table(metaclass=TableMetaclass):
                 if isinstance(column, Email):
                     email_columns.append(column)
 
-                if isinstance(column, Secret):
-                    secret_columns.append(column)
-
                 if isinstance(column, ForeignKey):
                     foreign_key_columns.append(column)
 
                 if isinstance(column, (JSON, JSONB)):
                     json_columns.append(column)
+
+                if column._meta.secret:
+                    secret_columns.append(column)
 
                 if column._meta.auto_update is not ...:
                     auto_update_columns.append(column)
