@@ -90,6 +90,8 @@ class TableMeta:
     primary_key: Column = field(default_factory=Column)
     json_columns: list[Union[JSON, JSONB]] = field(default_factory=list)
     secret_columns: list[Column] = field(default_factory=list)
+    composite_indexes: list[Composite] = field(default_factory=list)
+    constraints: list[Constraint] = field(default_factory=list)
     auto_update_columns: list[Column] = field(default_factory=list)
     tags: list[str] = field(default_factory=list)
     help_text: Optional[str] = None

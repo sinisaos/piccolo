@@ -1483,6 +1483,13 @@ class MigrationManager:
             await self._run_rename_columns(backwards=backwards)
             await self._run_add_composite_indexes(backwards=backwards)
             await self._run_drop_composite_indexes(backwards=backwards)
-            await self._run_alter_columns(backwards=backwards)
             await self._run_add_constraints(backwards=backwards)
             await self._run_drop_constraints(backwards=backwards)
+            # We can remove this for cockroach when resolved.
+            # https://github.com/cockroachdb/cockroach/issues/49351
+            # "ALTER COLUMN TYPE is not supported inside a transaction"
+            if engine.engine_type != "cockroach":
+                await self._run_alter_columns(backwards=backwards)
+
+        if engine.engine_type == "cockroach":
+            await self._run_alter_columns(backwards=backwards)
