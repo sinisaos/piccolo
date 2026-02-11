@@ -1,7 +1,7 @@
 from unittest import TestCase
 
 from piccolo.querystring import QueryString
-from tests.base import mysql_only, postgres_only
+from tests.base import mysql_only
 
 
 # TODO - add more extensive tests (increased nesting and argument count).
@@ -31,7 +31,6 @@ class TestQueryString(TestCase):
         self.assertEqual(qs.compile_string(), ("SELECT name FROM band", []))
 
 
-@postgres_only
 class TestQueryStringOperators(TestCase):
     """
     Make sure basic operations can be used on ``QueryString``.

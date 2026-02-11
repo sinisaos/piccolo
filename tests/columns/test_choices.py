@@ -81,7 +81,7 @@ class Ticket(Table):
 
     extras = Array(Varchar(), choices=Extras)
 
-
+    
 @engines_only("mysql")
 class TestArrayChoicesMySQL(AsyncTableTest):
     tables = [Ticket]
@@ -137,11 +137,7 @@ class TestArrayChoicesMySQL(AsyncTableTest):
         )
 
 
-@engines_only("postgres", "sqlite")
 class TestArrayChoices(AsyncTableTest):
-    """
-    🐛 Cockroach bug: https://github.com/cockroachdb/cockroach/issues/71908 "could not decorrelate subquery" error under asyncpg
-    """  # noqa: E501
 
     tables = [Ticket]
 
