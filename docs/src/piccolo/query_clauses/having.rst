@@ -32,7 +32,7 @@ any bands with less than 2 albums).
     ... ).group_by(
     ...     Album.band
     ... ).having(
-    ...     Count() >= 1
+    ...     Count() >= 2
     ... )
 
     [
