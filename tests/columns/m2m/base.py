@@ -11,6 +11,7 @@ from piccolo.columns.m2m import M2M
 from piccolo.engine.finder import engine_finder
 from piccolo.schema import SchemaManager
 from piccolo.table import Table, create_db_tables_sync, drop_db_tables_sync
+from tests.base import engines_skip
 
 engine = engine_finder()
 

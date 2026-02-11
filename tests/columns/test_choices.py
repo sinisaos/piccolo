@@ -3,7 +3,7 @@ import enum
 from piccolo.columns.column_types import Array, Varchar
 from piccolo.table import Table
 from piccolo.testing.test_case import AsyncTableTest
-from tests.base import engines_only
+from tests.base import engines_only, engines_skip
 from tests.example_apps.music.tables import Shirt
 
 
@@ -81,7 +81,7 @@ class Ticket(Table):
 
     extras = Array(Varchar(), choices=Extras)
 
-    
+
 @engines_only("mysql")
 class TestArrayChoicesMySQL(AsyncTableTest):
     tables = [Ticket]
@@ -137,6 +137,7 @@ class TestArrayChoicesMySQL(AsyncTableTest):
         )
 
 
+@engines_skip("mysql")
 class TestArrayChoices(AsyncTableTest):
 
     tables = [Ticket]

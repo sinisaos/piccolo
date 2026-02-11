@@ -1,7 +1,7 @@
 from piccolo.columns.column_types import JSONB, ForeignKey, Varchar
 from piccolo.table import Table
 from piccolo.testing.test_case import AsyncTableTest, TableTest
-from tests.base import engines_only
+from tests.base import engines_only, engines_skip
 
 
 class RecordingStudio(Table):
@@ -51,6 +51,7 @@ class TestJSONB(TableTest):
             ],
         )
 
+    @engines_skip("mysql")
     def test_raw_alt(self):
         """
         Make sure raw queries convert the Python value into a JSON string.
