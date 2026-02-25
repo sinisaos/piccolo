@@ -78,6 +78,24 @@ class RenameColumn(AlterColumnStatement):
 
 
 @dataclass
+class RenameColumnMySQL(AlterColumnStatement):
+    __slots__ = ("new_name",)
+
+    new_name: str
+
+    @property
+    def ddl(self) -> str:
+        if isinstance(self.column, str):
+            raise ValueError("MySQL requires a column instance for renaming.")
+        column_type = self.column.column_type
+        null_sql = "NULL" if self.column._meta.null else "NOT NULL"
+        return (
+            f"CHANGE `{self.column_name}` `{self.new_name}` "
+            f"{column_type} {null_sql}"
+        )
+
+
+@dataclass
 class DropColumn(AlterColumnStatement):
     @property
     def ddl(self) -> str:
@@ -95,6 +113,19 @@ class AddColumn(AlterColumnStatement):
     def ddl(self) -> str:
         self.column._meta.name = self.name
         return f"ADD COLUMN {self.column.ddl}"
+
+
+@dataclass
+class AddColumnMySQL(AlterColumnStatement):
+    __slots__ = ("name",)
+
+    column: Column
+    name: str
+
+    @property
+    def ddl(self) -> str:
+        self.column._meta.name = self.name
+        return f"ADD COLUMN {self.column.ddl} {self.column.column_type}"
 
 
 @dataclass
@@ -133,6 +164,24 @@ class SetColumnType(AlterStatement):
 
 
 @dataclass
+class SetColumnTypeMySQL(AlterStatement):
+
+    old_column: Column
+    new_column: Column
+
+    @property
+    def ddl(self) -> str:
+        if self.new_column._meta._table is None:
+            self.new_column._meta._table = self.old_column._meta.table
+
+        column_name = self.old_column._meta.db_column_name
+        column_type = self.new_column.column_type
+        query = f"MODIFY `{column_name}` {column_type}"
+
+        return query
+
+
+@dataclass
 class SetDefault(AlterColumnStatement):
     __slots__ = ("value",)
 
@@ -141,6 +190,24 @@ class SetDefault(AlterColumnStatement):
 
     @property
     def ddl(self) -> str:
+        sql_value = self.column.get_sql_value(self.value)
+        return f'ALTER COLUMN "{self.column_name}" SET DEFAULT {sql_value}'
+
+
+@dataclass
+class SetDefaultMySQL(AlterColumnStatement):
+    __slots__ = ("value",)
+
+    column: Column
+    value: Any
+
+    @property
+    def ddl(self) -> str:
+        if self.column.column_type in ("TEXT", "JSON", "BLOB"):
+            raise ValueError(
+                "MySQL does not support default value in alter "
+                "statement for TEXT, JSON and BLOB columns"
+            )
         sql_value = self.column.get_sql_value(self.value)
         return f'ALTER COLUMN "{self.column_name}" SET DEFAULT {sql_value}'
 
@@ -181,6 +248,25 @@ class SetNull(AlterColumnStatement):
 
 
 @dataclass
+class SetNullMySQL(AlterColumnStatement):
+    __slots__ = ("boolean",)
+
+    boolean: bool
+
+    @property
+    def ddl(self) -> str:
+        if isinstance(self.column, str):
+            raise ValueError(
+                "MySQL requires a column instance for setting null."
+            )
+        column_type = self.column.column_type
+        if self.boolean:
+            return f"MODIFY `{self.column_name}` {column_type} NULL"
+        else:
+            return f"MODIFY `{self.column_name}` {column_type} NOT NULL"
+
+
+@dataclass
 class SetLength(AlterColumnStatement):
     __slots__ = ("length",)
 
@@ -202,6 +288,16 @@ class AddConstraint(AlterStatement):
         return f"ADD CONSTRAINT {self.constraint._meta.name} {self.constraint.ddl}"  # noqa: E501
 
 
+class SetLengthMySQL(AlterColumnStatement):
+    __slots__ = ("length",)
+
+    length: int
+
+    @property
+    def ddl(self) -> str:
+        return f'MODIFY "{self.column_name}" VARCHAR({self.length})'
+
+
 @dataclass
 class DropConstraint(AlterStatement):
     __slots__ = ("constraint_name",)
@@ -211,6 +307,17 @@ class DropConstraint(AlterStatement):
     @property
     def ddl(self) -> str:
         return f"DROP CONSTRAINT IF EXISTS {self.constraint_name}"
+
+
+@dataclass
+class DropConstraintMySQL(AlterStatement):
+    __slots__ = ("constraint_name",)
+
+    constraint_name: str
+
+    @property
+    def ddl(self) -> str:
+        return f"DROP FOREIGN KEY {self.constraint_name}"
 
 
 @dataclass
@@ -261,6 +368,26 @@ class SetDigits(AlterColumnStatement):
         scale = self.digits[1]
         return (
             f'ALTER COLUMN "{self.column_name}" TYPE '
+            f"{self.column_type}({precision}, {scale})"
+        )
+
+
+@dataclass
+class SetDigitsMySQL(AlterColumnStatement):
+    __slots__ = ("digits", "column_type")
+
+    digits: Optional[tuple[int, int]]
+    column_type: str
+
+    @property
+    def ddl(self) -> str:
+        if self.digits is None:
+            return f'MODIFY "{self.column_name}" {self.column_type}'
+
+        precision = self.digits[0]
+        scale = self.digits[1]
+        return (
+            f'MODIFY "{self.column_name}" '
             f"{self.column_type}({precision}, {scale})"
         )
 
@@ -323,17 +450,21 @@ class Alter(DDL):
         self._add_foreign_key_constraint: list[AddForeignKeyConstraint] = []
         self._add: list[AddColumn] = []
         self._add_constraint: list[AddConstraint] = []
-        self._drop_constraint: list[DropConstraint] = []
+        self._drop_constraint: list[
+            Union[DropConstraint, DropConstraintMySQL]
+        ] = []
         self._drop_default: list[DropDefault] = []
         self._drop_table: Optional[DropTable] = None
         self._drop: list[DropColumn] = []
-        self._rename_columns: list[RenameColumn] = []
+        self._rename_columns: list[Union[RenameColumn, RenameColumnMySQL]] = []
         self._rename_table: list[RenameTable] = []
-        self._set_column_type: list[SetColumnType] = []
-        self._set_default: list[SetDefault] = []
-        self._set_digits: list[SetDigits] = []
-        self._set_length: list[SetLength] = []
-        self._set_null: list[SetNull] = []
+        self._set_column_type: list[
+            Union[SetColumnType, SetColumnTypeMySQL]
+        ] = []
+        self._set_default: list[Union[SetDefault, SetDefaultMySQL]] = []
+        self._set_digits: list[Union[SetDigits, SetDigitsMySQL]] = []
+        self._set_length: list[Union[SetLength, SetLengthMySQL]] = []
+        self._set_null: list[Union[SetNull, SetNullMySQL]] = []
         self._set_schema: list[SetSchema] = []
         self._set_unique: list[SetUnique] = []
         self._rename_constraint: list[RenameConstraint] = []
@@ -433,7 +564,10 @@ class Alter(DDL):
             >>> await Band.alter().rename_column('popularity', 'rating')
 
         """
-        self._rename_columns.append(RenameColumn(column, new_name))
+        if self.engine_type == "mysql":
+            self._rename_columns.append(RenameColumnMySQL(column, new_name))
+        else:
+            self._rename_columns.append(RenameColumn(column, new_name))
         return self
 
     def set_column_type(
@@ -454,13 +588,21 @@ class Alter(DDL):
             ``'name::integer'``.
 
         """
-        self._set_column_type.append(
-            SetColumnType(
-                old_column=old_column,
-                new_column=new_column,
-                using_expression=using_expression,
+        if self.engine_type == "mysql":
+            self._set_column_type.append(
+                SetColumnTypeMySQL(
+                    old_column=old_column,
+                    new_column=new_column,
+                )
             )
-        )
+        else:
+            self._set_column_type.append(
+                SetColumnType(
+                    old_column=old_column,
+                    new_column=new_column,
+                    using_expression=using_expression,
+                )
+            )
         return self
 
     def set_default(self, column: Column, value: Any) -> Alter:
@@ -470,7 +612,12 @@ class Alter(DDL):
             >>> await Band.alter().set_default(Band.popularity, 0)
 
         """
-        self._set_default.append(SetDefault(column=column, value=value))
+        if self.engine_type == "mysql":
+            self._set_default.append(
+                SetDefaultMySQL(column=column, value=value)
+            )
+        else:
+            self._set_default.append(SetDefault(column=column, value=value))
         return self
 
     def set_null(
@@ -482,11 +629,17 @@ class Alter(DDL):
             # Specify the column using a `Column` instance:
             >>> await Band.alter().set_null(Band.name, True)
 
-            # Or using a string:
+            # Or using a string in Postgres:
             >>> await Band.alter().set_null('name', True)
 
+            # Can't use a string because MySQL requires
+            # column instance
+
         """
-        self._set_null.append(SetNull(column, boolean))
+        if self.engine_type == "mysql":
+            self._set_null.append(SetNullMySQL(column, boolean))
+        else:
+            self._set_null.append(SetNull(column, boolean))
         return self
 
     def set_unique(
@@ -530,7 +683,10 @@ class Alter(DDL):
                 "Only Varchar columns can have their length changed."
             )
 
-        self._set_length.append(SetLength(column, length))
+        if self.engine_type == "mysql":
+            self._set_length.append(SetLengthMySQL(column, length))
+        else:
+            self._set_length.append(SetLength(column, length))
         return self
 
     def _get_constraint_name(self, column: Union[str, ForeignKey]) -> str:
@@ -543,18 +699,29 @@ class Alter(DDL):
         return self
 
     def drop_constraint(self, constraint_name: str) -> Alter:
-        self._drop_constraint.append(
-            DropConstraint(constraint_name=constraint_name)
-        )
+        if self.engine_type == "mysql":
+            self._drop_constraint.append(
+                DropConstraintMySQL(constraint_name=constraint_name)
+            )
+        else:
+            self._drop_constraint.append(
+                DropConstraint(constraint_name=constraint_name)
+            )
         return self
 
     def drop_foreign_key_constraint(
         self, column: Union[str, ForeignKey]
     ) -> Alter:
-        constraint_name = self._get_constraint_name(column=column)
-        self._drop_constraint.append(
-            DropConstraint(constraint_name=constraint_name)
-        )
+        if self.engine_type == "mysql":
+            constraint_name = self._get_constraint_name(column=column)
+            self._drop_constraint.append(
+                DropConstraintMySQL(constraint_name=constraint_name)
+            )
+        else:
+            constraint_name = self._get_constraint_name(column=column)
+            self._drop_constraint.append(
+                DropConstraint(constraint_name=constraint_name)
+            )
         return self
 
     def add_foreign_key_constraint(
@@ -621,13 +788,22 @@ class Alter(DDL):
             if isinstance(column, Numeric)
             else "NUMERIC"
         )
-        self._set_digits.append(
-            SetDigits(
-                digits=digits,
-                column=column,
-                column_type=column_type,
+        if self.engine_type == "mysql":
+            self._set_digits.append(
+                SetDigitsMySQL(
+                    digits=digits,
+                    column=column,
+                    column_type=column_type,
+                )
             )
-        )
+        else:
+            self._set_digits.append(
+                SetDigits(
+                    digits=digits,
+                    column=column,
+                    column_type=column_type,
+                )
+            )
         return self
 
     def set_schema(self, schema_name: str) -> Alter:
