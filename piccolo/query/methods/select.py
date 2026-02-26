@@ -528,7 +528,7 @@ class Select(Query[TableInstance, list[dict[str, Any]]]):
                             reverse_lookup_select,
                             as_list=False,
                         )
-            if self.engine_type in ("postgres", "cockroach"):
+            if self.engine_type in ("postgres", "cockroach", "mysql"):
                 if reverse_lookup_select.as_list:
                     # We get the data back as an array, and can just return it
                     # unless it's JSON.
@@ -541,6 +541,13 @@ class Select(Query[TableInstance, list[dict[str, Any]]]):
                             row[str(reverse_lookup_select.columns[0])] = [
                                 load_json(i) for i in data
                             ]
+                    if self.engine_type == "mysql":
+                        # for MySQL
+                        for row in response:
+                            data = row[reverse_lookup_name]
+                            row[reverse_lookup_name] = (
+                                load_json(data) if data is not None else []
+                            )
 
                 elif reverse_lookup_select.serialisation_safe:
                     # If the columns requested can be safely serialised, they

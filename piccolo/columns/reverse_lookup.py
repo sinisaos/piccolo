@@ -131,18 +131,69 @@ class ReverseLookupSelect(Selectable):
                     column_name = self.columns[0]._meta.db_column_name
                 except IndexError:
                     column_name = table2_pk
-
             return QueryString(
                 f"""
                 (
                     SELECT group_concat(
-                        "{table2_name}"."{column_name}"
+                        {table2_name}."{column_name}"
                     )
                     FROM {reverse_select}
                 )
                 AS "{reverse_lookup_name} [M2M]"
             """
             )
+        elif engine_type == "mysql":
+            # always unique aliases (safe for self-reference in MySQL)
+            alias_2 = f"inner_{table2_name}"
+
+            if self.as_list:
+                column_name = self.columns[0]._meta.db_column_name
+
+                return QueryString(
+                    f"""
+                    (
+                        SELECT JSON_ARRAYAGG({alias_2}.`{column_name}`)
+                        FROM {table2_name} AS {alias_2}
+                        WHERE {alias_2}.`{table2_fk}`
+                            = {table1_name}.`{table1_pk}`
+                    ) AS `{reverse_lookup_name}`
+                """
+                )
+
+            elif not self.serialisation_safe:
+                return QueryString(
+                    f"""
+                    (
+                        SELECT JSON_ARRAYAGG({alias_2}.`{table2_pk}`)
+                        FROM {table2_name} AS {alias_2}
+                        WHERE {alias_2}.`{table2_fk}`
+                            = {table1_name}.`{table1_pk}`
+                    ) AS `{reverse_lookup_name}`
+                """
+                )
+
+            else:
+                if len(self.columns) > 0:
+                    columns = self.columns
+                else:
+                    columns = table2._meta.columns  # type:ignore
+
+                json_fields = ", ".join(
+                    f"'{col._meta.db_column_name}', {alias_2}.`{col._meta.db_column_name}`"  # noqa: E501
+                    for col in columns
+                )
+                return QueryString(
+                    f"""
+                    (
+                        SELECT JSON_ARRAYAGG(
+                            JSON_OBJECT({json_fields})
+                        )
+                        FROM {table2_name} AS {alias_2}
+                        WHERE {alias_2}.`{table2_fk}`
+                            = {table1_name}.`{table1_pk}`
+                    ) AS `{reverse_lookup_name}`
+                """
+                )
         else:
             raise ValueError(f"{engine_type} is an unrecognised engine type")
 

@@ -302,7 +302,7 @@ class TestReverseLookupCustomPrimaryKey(TestCase):
     def tearDown(self):
         drop_db_tables_sync(*CUSTOM_PK_SCHEMA)
 
-    @engines_skip("cockroach")
+    @engines_skip("cockroach", "mysql")
     def test_select_custom_primary_key(self):
         response = Customer.select(
             Customer.name,

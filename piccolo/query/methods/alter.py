@@ -278,16 +278,6 @@ class SetLength(AlterColumnStatement):
 
 
 @dataclass
-class AddConstraint(AlterStatement):
-    __slots__ = ("constraint",)
-
-    constraint: Constraint
-
-    @property
-    def ddl(self) -> str:
-        return f"ADD CONSTRAINT {self.constraint._meta.name} {self.constraint.ddl}"  # noqa: E501
-
-
 class SetLengthMySQL(AlterColumnStatement):
     __slots__ = ("length",)
 
@@ -296,6 +286,17 @@ class SetLengthMySQL(AlterColumnStatement):
     @property
     def ddl(self) -> str:
         return f'MODIFY "{self.column_name}" VARCHAR({self.length})'
+
+
+@dataclass
+class AddConstraint(AlterStatement):
+    __slots__ = ("constraint",)
+
+    constraint: Constraint
+
+    @property
+    def ddl(self) -> str:
+        return f"ADD CONSTRAINT {self.constraint._meta.name} {self.constraint.ddl}"  # noqa: E501
 
 
 @dataclass
@@ -712,13 +713,12 @@ class Alter(DDL):
     def drop_foreign_key_constraint(
         self, column: Union[str, ForeignKey]
     ) -> Alter:
+        constraint_name = self._get_constraint_name(column=column)
         if self.engine_type == "mysql":
-            constraint_name = self._get_constraint_name(column=column)
             self._drop_constraint.append(
                 DropConstraintMySQL(constraint_name=constraint_name)
             )
         else:
-            constraint_name = self._get_constraint_name(column=column)
             self._drop_constraint.append(
                 DropConstraint(constraint_name=constraint_name)
             )
@@ -843,7 +843,6 @@ class Alter(DDL):
                 self._set_digits,
                 self._set_schema,
                 self._add_constraint,
-                self._drop_constraint,
             )
         ]
 

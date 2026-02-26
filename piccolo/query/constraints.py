@@ -133,7 +133,6 @@ async def get_fk_constraint_name_mysql(column: ForeignKey) -> Optional[str]:
         table_name,
         column_name,
     )
-    print(constraints)
     return constraints[0][0] if constraints else None
 
 
