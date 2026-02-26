@@ -672,7 +672,7 @@ class Table(metaclass=TableMetaclass):
             >>> print(manager.name)
             'Guido'
 
-        It can only follow foreign keys multiple levels deep. For example,
+        It can follow foreign keys multiple levels deep. For example,
         ``Concert.band_1.manager``.
 
         """
