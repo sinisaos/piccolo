@@ -45,12 +45,14 @@ class DropIndex(Query):
 
     @property
     def mysql_querystrings(self) -> Sequence[QueryString]:
-        column_names = self.column_names
-        index_name = self.table._get_index_name(column_names)
-        query = "DROP INDEX"
+        if self.name is not None:
+            index_name = self.name
+        else:
+            column_names = self.column_names
+            index_name = self.table._get_index_name(column_names)
+
         return [
             QueryString(
-                f"ALTER TABLE {self.table._meta.tablename} "
-                f"{query} {index_name}"
+                f"DROP INDEX {index_name} " f"ON {self.table._meta.tablename}"
             )
         ]

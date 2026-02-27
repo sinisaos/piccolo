@@ -758,7 +758,7 @@ class SchemaDiffer:
                 )
 
                 response.append(
-                    f"manager.drop_composite_index(table_class_name='{table.class_name}', tablename='{table.tablename}', composite_index_name='{drop_composite_index.composite_index_name}', schema={schema_str})"  # noqa: E501
+                    f"manager.drop_composite_index(table_class_name='{table.class_name}', tablename='{table.tablename}', composite_index_name='{drop_composite_index.composite_index_name}', schema={schema_str}, columns={[i._meta.name for i in drop_composite_index.columns]})"  # noqa: E501
                 )
         return AlterStatements(statements=response)
 

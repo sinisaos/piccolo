@@ -823,7 +823,7 @@ class TestMigrationManager(DBTestCase):
         )
         asyncio.run(manager_1.run())
 
-        if engine_is("postgres"):
+        if engine_is("postgres", "mysql"):
             self.run_sync("INSERT INTO musician VALUES (default, 'Dave');")
             response = self.run_sync("SELECT * FROM musician;")
             self.assertEqual(response, [{"id": 1, "name": "Dave"}])
@@ -846,7 +846,7 @@ class TestMigrationManager(DBTestCase):
         )
         asyncio.run(manager_2.run())
 
-        if engine_is("postgres"):
+        if engine_is("postgres", "mysql"):
             response = self.run_sync("SELECT * FROM musician;")
             self.assertEqual(response, [{"id": 1}])
 
@@ -860,7 +860,7 @@ class TestMigrationManager(DBTestCase):
         get_app_config.return_value = app_config
         asyncio.run(manager_2.run(backwards=True))
         response = self.run_sync("SELECT * FROM musician;")
-        if engine_is("postgres"):
+        if engine_is("postgres", "mysql"):
             self.assertEqual(response, [{"id": 1, "name": ""}])
 
         if engine_is("cockroach"):
@@ -1630,10 +1630,17 @@ class TestMigrationManager(DBTestCase):
             schema=None,
         )
         asyncio.run(manager.run())
-        result = self.run_sync(
-            "SELECT indexname FROM pg_indexes WHERE tablename='musician'"
-        )
-        self.assertEqual(result[-1]["indexname"], "name_label")
+
+        sql = """
+        SELECT indexname FROM pg_indexes 
+        WHERE tablename='musician' 
+        ORDER BY indexname;
+        """
+
+        result = self.run_sync(sql)
+        index_names = [r["indexname"] for r in result]
+        assert "name_label" in index_names
+        assert "musician_pkey" in index_names
         self.assertEqual(len(result), 2)
 
         # Reverse
@@ -1679,23 +1686,33 @@ class TestMigrationManager(DBTestCase):
         )
         asyncio.run(manager_2.run())
 
-        sql = "SELECT indexname FROM pg_indexes WHERE tablename='musician'"
+        sql = """
+        SELECT indexname FROM pg_indexes 
+        WHERE tablename='musician' 
+        ORDER BY indexname;
+        """
 
         result = self.run_sync(sql)
-        self.assertEqual(result[-1]["indexname"], "name_label")
+        index_names = [r["indexname"] for r in result]
+        assert "name_label" in index_names
+        assert "musician_pkey" in index_names
         self.assertEqual(len(result), 2)
 
         # Reverse
         asyncio.run(manager_2.run(backwards=True))
 
         result = self.run_sync(sql)
-        self.assertEqual(result, [{"indexname": "musician_pkey"}])
+        index_names = [r["indexname"] for r in result]
+        assert "name_label" not in index_names
+        assert "musician_pkey" in index_names
         self.assertEqual(len(result), 1)
 
         asyncio.run(manager_2.run())
 
         result = self.run_sync(sql)
-        self.assertEqual(result[-1]["indexname"], "name_label")
+        index_names = [r["indexname"] for r in result]
+        assert "name_label" in index_names
+        assert "musician_pkey" in index_names
         self.assertEqual(len(result), 2)
 
         manager_2 = MigrationManager()
@@ -1703,10 +1720,13 @@ class TestMigrationManager(DBTestCase):
             table_class_name="Musician",
             tablename="musician",
             composite_index_name="name_label",
+            columns=["name", "label"],
         )
         asyncio.run(manager_2.run())
         result = self.run_sync(sql)
-        self.assertEqual(result, [{"indexname": "musician_pkey"}])
+        index_names = [r["indexname"] for r in result]
+        assert "name_label" not in index_names
+        assert "musician_pkey" in index_names
         self.assertEqual(len(result), 1)
 
         self.run_sync("DROP TABLE IF EXISTS musician;")
@@ -1744,10 +1764,16 @@ class TestMigrationManager(DBTestCase):
         )
         asyncio.run(manager_1.run())
 
-        sql = "SELECT indexname FROM pg_indexes WHERE tablename='musician'"
+        sql = """
+        SELECT indexname FROM pg_indexes 
+        WHERE tablename='musician' 
+        ORDER BY indexname;
+        """
 
         result = self.run_sync(sql)
-        self.assertEqual(result[-1]["indexname"], "name_label")
+        index_names = [r["indexname"] for r in result]
+        assert "name_label" in index_names
+        assert "musician_pkey" in index_names
         self.assertEqual(len(result), 2)
 
         manager_2 = MigrationManager()
@@ -1755,11 +1781,14 @@ class TestMigrationManager(DBTestCase):
             table_class_name="Musician",
             tablename="musician",
             composite_index_name="name_label",
+            columns=["name", "label"],
         )
         asyncio.run(manager_2.run())
 
         result = self.run_sync(sql)
-        self.assertEqual(result, [{"indexname": "musician_pkey"}])
+        index_names = [r["indexname"] for r in result]
+        assert "name_label" not in index_names
+        assert "musician_pkey" in index_names
         self.assertEqual(len(result), 1)
 
         # Reverse
@@ -1768,12 +1797,220 @@ class TestMigrationManager(DBTestCase):
         get_app_config.return_value = app_config
         asyncio.run(manager_2.run(backwards=True))
         result = self.run_sync(sql)
-        self.assertEqual(result[-1]["indexname"], "name_label")
+        index_names = [r["indexname"] for r in result]
+        assert "name_label" in index_names
+        assert "musician_pkey" in index_names
         self.assertEqual(len(result), 2)
 
         # Reverse
         asyncio.run(manager_1.run(backwards=True))
         self.assertTrue(not self.table_exists("musician"))
+
+    @engines_only("mysql")
+    @patch.object(
+        BaseMigrationManager, "get_migration_managers", new_callable=AsyncMock
+    )
+    @patch.object(BaseMigrationManager, "get_app_config")
+    def test_add_table_with_composite_index_mysql(
+        self, get_app_config: MagicMock, get_migration_managers: MagicMock
+    ):
+        self.run_sync("DROP TABLE IF EXISTS musician;")
+
+        manager = MigrationManager()
+        manager.add_table(class_name="Musician", tablename="musician")
+        manager.add_column(
+            table_class_name="Musician",
+            tablename="musician",
+            column_name="name",
+            column_class_name="Varchar",
+        )
+        manager.add_column(
+            table_class_name="Musician",
+            tablename="musician",
+            column_name="label",
+            column_class_name="Varchar",
+        )
+        manager.add_composite_index(
+            table_class_name="Musician",
+            tablename="musician",
+            composite_index_name="musician_name_label",
+            composite_index_class=CompositeIndex,
+            params={"columns": ["name", "label"]},
+        )
+
+        asyncio.run(manager.run())
+
+        # check index exists
+        result = self.run_sync(
+            """
+            SELECT INDEX_NAME
+            FROM INFORMATION_SCHEMA.STATISTICS
+            WHERE TABLE_NAME = 'musician';
+            """
+        )
+        index_names = [r["INDEX_NAME"] for r in result]
+        assert "musician_name_label" in index_names
+        assert "PRIMARY" in index_names
+
+        # Reverse
+        asyncio.run(manager.run(backwards=True))
+        assert not self.table_exists("musician")
+
+    @engines_only("mysql")
+    @patch.object(
+        BaseMigrationManager, "get_migration_managers", new_callable=AsyncMock
+    )
+    @patch.object(BaseMigrationManager, "get_app_config")
+    def test_add_composite_index_to_existing_table_mysql(
+        self, get_app_config: MagicMock, get_migration_managers: MagicMock
+    ):
+        self.run_sync("DROP TABLE IF EXISTS musician;")
+
+        manager = MigrationManager()
+        manager.add_table(class_name="Musician", tablename="musician")
+        manager.add_column(
+            table_class_name="Musician",
+            tablename="musician",
+            column_name="name",
+            column_class_name="Varchar",
+        )
+        manager.add_column(
+            table_class_name="Musician",
+            tablename="musician",
+            column_name="label",
+            column_class_name="Varchar",
+        )
+        manager.add_composite_index(
+            table_class_name="Musician",
+            tablename="musician",
+            composite_index_name="musician_name_label",
+            composite_index_class=CompositeIndex,
+            params={"columns": ["name", "label"]},
+        )
+
+        asyncio.run(manager.run())
+
+        sql = """
+        SELECT INDEX_NAME
+        FROM INFORMATION_SCHEMA.STATISTICS
+        WHERE TABLE_NAME = 'musician';
+        """
+
+        manager_2 = MigrationManager()
+        manager_2.drop_composite_index(
+            table_class_name="Musician",
+            tablename="musician",
+            composite_index_name="musician_name_label",
+            columns=["name", "label"],
+        )
+        asyncio.run(manager_2.run())
+        result = self.run_sync(sql)
+        index_names = [r["INDEX_NAME"] for r in result]
+        assert index_names == ["PRIMARY"]
+
+        # re-add index
+        manager_3 = MigrationManager()
+        manager_3.add_composite_index(
+            table_class_name="Musician",
+            tablename="musician",
+            composite_index_name="musician_name_label",
+            composite_index_class=CompositeIndex,
+            params={"columns": ["name", "label"]},
+        )
+
+        asyncio.run(manager_3.run())
+        result = self.run_sync(sql)
+        index_names = [r["INDEX_NAME"] for r in result]
+        assert "PRIMARY" in index_names
+        assert "musician_name_label" in index_names
+
+        # drop index finally
+        manager_5 = MigrationManager()
+        manager_5.drop_composite_index(
+            table_class_name="Musician",
+            tablename="musician",
+            composite_index_name="musician_name_label",
+            columns=["name", "label"],
+        )
+        asyncio.run(manager_5.run())
+        result = self.run_sync(sql)
+        index_names = [r["INDEX_NAME"] for r in result]
+        assert index_names == ["PRIMARY"]
+
+        self.run_sync("DROP TABLE IF EXISTS musician;")
+
+    @engines_only("mysql")
+    @patch.object(
+        BaseMigrationManager, "get_migration_managers", new_callable=AsyncMock
+    )
+    @patch.object(BaseMigrationManager, "get_app_config")
+    def test_drop_composite_index_from_existing_table_mysql(
+        self, get_app_config: MagicMock, get_migration_managers: MagicMock
+    ):
+        self.run_sync("DROP TABLE IF EXISTS musician;")
+
+        manager_1 = MigrationManager()
+        manager_1.add_table(class_name="Musician", tablename="musician")
+        manager_1.add_column(
+            table_class_name="Musician",
+            tablename="musician",
+            column_name="name",
+            column_class_name="Varchar",
+        )
+        manager_1.add_column(
+            table_class_name="Musician",
+            tablename="musician",
+            column_name="label",
+            column_class_name="Varchar",
+        )
+        manager_1.add_composite_index(
+            table_class_name="Musician",
+            tablename="musician",
+            composite_index_name="musician_name_label",
+            composite_index_class=CompositeIndex,
+            params={"columns": ["name", "label"]},
+        )
+
+        asyncio.run(manager_1.run())
+
+        sql = """
+        SELECT INDEX_NAME
+        FROM INFORMATION_SCHEMA.STATISTICS
+        WHERE TABLE_NAME = 'musician';
+        """
+
+        result = self.run_sync(sql)
+        index_names = [r["INDEX_NAME"] for r in result]
+        assert "musician_name_label" in index_names
+        assert "PRIMARY" in index_names
+
+        manager_2 = MigrationManager()
+        manager_2.drop_composite_index(
+            table_class_name="Musician",
+            tablename="musician",
+            composite_index_name="musician_name_label",
+            columns=["name", "label"],
+        )
+        asyncio.run(manager_2.run())
+
+        result = self.run_sync(sql)
+        index_names = [r["INDEX_NAME"] for r in result]
+        assert index_names == ["PRIMARY"]
+
+        # Reverse
+        get_migration_managers.return_value = [manager_1]
+        app_config = AppConfig(app_name="music", migrations_folder_path="")
+        get_app_config.return_value = app_config
+        asyncio.run(manager_2.run(backwards=True))
+
+        result = self.run_sync(sql)
+        index_names = [r["INDEX_NAME"] for r in result]
+        assert "musician_name_label" in index_names
+        assert "PRIMARY" in index_names
+
+        # Reverse
+        asyncio.run(manager_1.run(backwards=True))
+        assert not self.table_exists("musician")
 
 
 class TestWrapInTransaction(IsolatedAsyncioTestCase):

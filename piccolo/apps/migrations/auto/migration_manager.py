@@ -572,6 +572,7 @@ class MigrationManager:
         table_class_name: str,
         tablename: str,
         composite_index_name: str,
+        columns: list[str],
         schema: Optional[str] = None,
     ):
         self.drop_composite_indexes.append(
@@ -580,6 +581,7 @@ class MigrationManager:
                 composite_index_name=composite_index_name,
                 tablename=tablename,
                 schema=schema,
+                columns=columns,
             )
         )
 
@@ -1372,12 +1374,23 @@ class MigrationManager:
                     },
                 )
 
+                if _Table._meta.db.engine_type == "mysql":
+                    columns = (
+                        add_composite_index.composite_index._meta.params[  # noqa: E501
+                            "columns"
+                        ],
+                    )
+                    tablename = add_composite_index.tablename
+                    index_name = f"{tablename}_{'_'.join(columns)}"
+                else:
+                    index_name = add_composite_index.composite_index._meta.name
+
                 await self._run_query(
                     _Table.drop_index(
                         columns=add_composite_index.composite_index._meta.params[  # noqa: E501
                             "columns"
                         ],
-                        name=add_composite_index.composite_index._meta.name,
+                        name=index_name,
                     )
                 )
         else:
@@ -1398,6 +1411,17 @@ class MigrationManager:
                     },
                 )
 
+                if _Table._meta.db.engine_type == "mysql":
+                    tablename = add_composite_indexes[0].tablename
+                    columns = add_composite_indexes[
+                        0
+                    ].composite_index._meta.params["columns"]
+                    index_name = f"{tablename}_{'_'.join(columns)}"
+                else:
+                    index_name = add_composite_indexes[
+                        0
+                    ].composite_index._meta.name
+
                 await self._run_query(
                     _Table.create_index(
                         columns=add_composite_indexes[
@@ -1406,9 +1430,7 @@ class MigrationManager:
                         method=add_composite_indexes[
                             0
                         ].composite_index._meta.params["index_type"],
-                        name=add_composite_indexes[
-                            0
-                        ].composite_index._meta.name,
+                        name=index_name,
                     )
                 )
 
@@ -1460,10 +1482,17 @@ class MigrationManager:
                     },
                 )
 
+                if _Table._meta.db.engine_type == "mysql":
+                    columns = composite_indexes[0].columns
+                    tablename = composite_indexes[0].tablename
+                    index_name = f"{tablename}_{'_'.join(columns)}"
+                else:
+                    index_name = composite_indexes[0].composite_index_name
+
                 await self._run_query(
                     _Table.drop_index(
                         columns=[],  # placeholder value
-                        name=composite_indexes[0].composite_index_name,
+                        name=index_name,
                     )
                 )
 

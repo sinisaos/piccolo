@@ -312,6 +312,7 @@ class DiffableTable:
                 composite_index_name=i.composite_index._meta.name,
                 tablename=value.tablename,
                 schema=self.schema,
+                columns=self.columns,
             )
             for i in sorted(
                 {

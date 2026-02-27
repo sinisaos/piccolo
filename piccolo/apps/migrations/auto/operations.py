@@ -100,4 +100,5 @@ class DropCompositeIndex:
     table_class_name: str
     composite_index_name: str
     tablename: str
+    columns: list[Any]
     schema: Optional[str] = None
