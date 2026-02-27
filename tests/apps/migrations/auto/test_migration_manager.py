@@ -1632,8 +1632,8 @@ class TestMigrationManager(DBTestCase):
         asyncio.run(manager.run())
 
         sql = """
-        SELECT indexname FROM pg_indexes 
-        WHERE tablename='musician' 
+        SELECT indexname FROM pg_indexes
+        WHERE tablename='musician'
         ORDER BY indexname;
         """
 
@@ -1687,8 +1687,8 @@ class TestMigrationManager(DBTestCase):
         asyncio.run(manager_2.run())
 
         sql = """
-        SELECT indexname FROM pg_indexes 
-        WHERE tablename='musician' 
+        SELECT indexname FROM pg_indexes
+        WHERE tablename='musician'
         ORDER BY indexname;
         """
 
@@ -1765,8 +1765,8 @@ class TestMigrationManager(DBTestCase):
         asyncio.run(manager_1.run())
 
         sql = """
-        SELECT indexname FROM pg_indexes 
-        WHERE tablename='musician' 
+        SELECT indexname FROM pg_indexes
+        WHERE tablename='musician'
         ORDER BY indexname;
         """
 
