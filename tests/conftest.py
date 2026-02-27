@@ -19,6 +19,8 @@ async def drop_tables():
         "recording_studio",
         "instrument",
         "shirt",
+        "instrument",
+        "signing",
         "mega_table",
         "small_table",
     ]
