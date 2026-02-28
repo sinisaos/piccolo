@@ -1286,12 +1286,21 @@ class MigrationManager:
                         "schema": add_constraint.schema,
                     },
                 )
-
-                await self._run_query(
-                    _Table.alter().drop_constraint(
-                        add_constraint.constraint._meta.name
+                # for MySQL just drop index because unique constraint
+                # is treated just as a unique index.
+                if _Table._meta.db.engine_type == "mysql":
+                    await self._run_query(
+                        _Table.drop_index(
+                            columns=[],
+                            name=add_constraint.constraint._meta.name,
+                        )
                     )
-                )
+                else:
+                    await self._run_query(
+                        _Table.alter().drop_constraint(
+                            add_constraint.constraint._meta.name,
+                        )
+                    )
         else:
             for table_class_name in self.add_constraints.table_class_names:
                 if table_class_name in [i.class_name for i in self.add_tables]:
@@ -1348,11 +1357,22 @@ class MigrationManager:
                 )
 
                 for constraint in constraints:
-                    await self._run_query(
-                        _Table.alter().drop_constraint(
-                            constraint_name=constraint.constraint_name
+                    # for MySQL just drop index because unique constraint
+                    # is treated just as a unique index.
+                    if _Table._meta.db.engine_type == "mysql":
+                        print(constraint.constraint_name)
+                        await self._run_query(
+                            _Table.drop_index(
+                                columns=[],  # placeholder value
+                                name=constraint.constraint_name,
+                            )
                         )
-                    )
+                    else:
+                        await self._run_query(
+                            _Table.alter().drop_constraint(
+                                constraint_name=constraint.constraint_name,
+                            )
+                        )
 
     async def _run_add_composite_indexes(self, backwards: bool = False):
         if backwards:

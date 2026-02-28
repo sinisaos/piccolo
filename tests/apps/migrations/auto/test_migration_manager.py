@@ -5,6 +5,8 @@ from typing import Optional
 from unittest import IsolatedAsyncioTestCase, TestCase
 from unittest.mock import MagicMock, patch
 
+import pymysql
+
 from piccolo.apps.migrations.auto.migration_manager import MigrationManager
 from piccolo.apps.migrations.commands.base import BaseMigrationManager
 from piccolo.columns import Text, Varchar
@@ -358,8 +360,11 @@ class TestMigrationManager(DBTestCase):
         if engine_is("cockroach"):
             self.assertEqual(response, [{"id": row_id, "name": "Dave"}])
 
-    @engines_only("postgres", "cockroach")
+    @engines_only("postgres", "cockroach", "mysql")
     def test_add_table_with_unique_constraint(self):
+        self.run_sync("DROP TABLE IF EXISTS musician;")
+        self.run_sync("DROP TABLE IF EXISTS musician2;")
+
         manager = MigrationManager()
         manager.add_table(class_name="Musician", tablename="musician")
         manager.add_column(
@@ -384,15 +389,22 @@ class TestMigrationManager(DBTestCase):
             },
         )
         asyncio.run(manager.run())
-        self.run_sync("INSERT INTO musician VALUES (default, 'a', 'a');")
-        with self.assertRaises(asyncpg.exceptions.UniqueViolationError):
-            self.run_sync("INSERT INTO musician VALUES (default, 'a', 'a');")
+        self.run_sync("INSERT INTO musician (name, label) VALUES ('a', 'a');")
+        if engine_is("postgres", "cockroach"):
+            expected = asyncpg.exceptions.UniqueViolationError
+        else:
+            expected = pymysql.err.IntegrityError
+
+        with self.assertRaises(expected):
+            self.run_sync(
+                "INSERT INTO musician (name, label) VALUES ('a', 'a');"
+            )
 
         # Reverse
         asyncio.run(manager.run(backwards=True))
         self.assertTrue(not self.table_exists("musician"))
 
-    @engines_only("postgres", "cockroach")
+    @engines_only("postgres", "cockroach", "mysql")
     @patch.object(
         BaseMigrationManager, "get_migration_managers", new_callable=AsyncMock
     )
@@ -400,6 +412,9 @@ class TestMigrationManager(DBTestCase):
     def test_drop_table_with_unique_constraint(
         self, get_app_config: MagicMock, get_migration_managers: MagicMock
     ):
+        self.run_sync("DROP TABLE IF EXISTS musician;")
+        self.run_sync("DROP TABLE IF EXISTS musician2;")
+
         manager_1 = MigrationManager()
         manager_1.add_table(class_name="Musician", tablename="musician")
         manager_1.add_column(
@@ -439,15 +454,22 @@ class TestMigrationManager(DBTestCase):
         app_config = AppConfig(app_name="music", migrations_folder_path="")
         get_app_config.return_value = app_config
         asyncio.run(manager_2.run(backwards=True))
-        self.run_sync("INSERT INTO musician VALUES (default, 'a', 'a');")
-        with self.assertRaises(asyncpg.exceptions.UniqueViolationError):
-            self.run_sync("INSERT INTO musician VALUES (default, 'a', 'a');")
+        self.run_sync("INSERT INTO musician (name, label) VALUES ('a', 'a');")
+        if engine_is("postgres", "cockroach"):
+            expected = asyncpg.exceptions.UniqueViolationError
+        else:
+            expected = pymysql.err.IntegrityError
+
+        with self.assertRaises(expected):
+            self.run_sync(
+                "INSERT INTO musician (name, label) VALUES ('a', 'a');"
+            )
 
         # Reverse
         asyncio.run(manager_1.run(backwards=True))
         self.assertTrue(not self.table_exists("musician"))
 
-    @engines_only("postgres", "cockroach")
+    @engines_only("postgres", "cockroach", "mysql")
     @patch.object(
         BaseMigrationManager, "get_migration_managers", new_callable=AsyncMock
     )
@@ -455,6 +477,9 @@ class TestMigrationManager(DBTestCase):
     def test_rename_table_with_unique_constraint(
         self, get_app_config: MagicMock, get_migration_managers: MagicMock
     ):
+        self.run_sync("DROP TABLE IF EXISTS musician;")
+        self.run_sync("DROP TABLE IF EXISTS musician2;")
+
         manager_1 = MigrationManager()
         manager_1.add_table(class_name="Musician", tablename="musician")
         manager_1.add_column(
@@ -490,9 +515,16 @@ class TestMigrationManager(DBTestCase):
         )
         asyncio.run(manager_2.run())
         self.assertTrue(not self.table_exists("musician"))
-        self.run_sync("INSERT INTO musician2 VALUES (default, 'a', 'a');")
-        with self.assertRaises(asyncpg.exceptions.UniqueViolationError):
-            self.run_sync("INSERT INTO musician2 VALUES (default, 'a', 'a');")
+        self.run_sync("INSERT INTO musician2 (name, label) VALUES ('a', 'a');")
+        if engine_is("postgres", "cockroach"):
+            expected = asyncpg.exceptions.UniqueViolationError
+        else:
+            expected = pymysql.err.IntegrityError
+
+        with self.assertRaises(expected):
+            self.run_sync(
+                "INSERT INTO musician2 (name, label) VALUES ('a', 'a');"
+            )
 
         # Reverse
         get_migration_managers.return_value = [manager_1]
@@ -500,15 +532,22 @@ class TestMigrationManager(DBTestCase):
         get_app_config.return_value = app_config
         asyncio.run(manager_2.run(backwards=True))
         self.assertTrue(not self.table_exists("musician2"))
-        with self.assertRaises(asyncpg.exceptions.UniqueViolationError):
-            self.run_sync("INSERT INTO musician VALUES (default, 'a', 'a');")
+        if engine_is("postgres", "cockroach"):
+            expected = asyncpg.exceptions.UniqueViolationError
+        else:
+            expected = pymysql.err.IntegrityError
+
+        with self.assertRaises(expected):
+            self.run_sync(
+                "INSERT INTO musician (name, label) VALUES ('a', 'a');"
+            )
 
         # Reverse
         asyncio.run(manager_1.run(backwards=True))
         self.assertTrue(not self.table_exists("musician"))
         self.assertTrue(not self.table_exists("musician2"))
 
-    @engines_only("postgres")
+    @engines_only("postgres", "mysql")
     @patch.object(
         BaseMigrationManager, "get_migration_managers", new_callable=AsyncMock
     )
@@ -521,6 +560,9 @@ class TestMigrationManager(DBTestCase):
         Cockroach DB doesn't support dropping unique constraints with ALTER TABLE DROP CONSTRAINT.
         https://github.com/cockroachdb/cockroach/issues/42840
         """  # noqa: E501
+        self.run_sync("DROP TABLE IF EXISTS musician;")
+        self.run_sync("DROP TABLE IF EXISTS musician2;")
+
         manager_1 = MigrationManager()
         manager_1.add_table(class_name="Musician", tablename="musician")
         manager_1.add_column(
@@ -548,22 +590,29 @@ class TestMigrationManager(DBTestCase):
             },
         )
         asyncio.run(manager_2.run())
-        self.run_sync("INSERT INTO musician VALUES (default, 'a', 'a');")
-        with self.assertRaises(asyncpg.exceptions.UniqueViolationError):
-            self.run_sync("INSERT INTO musician VALUES (default, 'a', 'a');")
+        self.run_sync("INSERT INTO musician (name, label) VALUES ('a', 'a');")
+        if engine_is("postgres"):
+            expected = asyncpg.exceptions.UniqueViolationError
+        else:
+            expected = pymysql.err.IntegrityError
+
+        with self.assertRaises(expected):
+            self.run_sync(
+                "INSERT INTO musician (name, label) VALUES ('a', 'a');"
+            )
 
         # Reverse
         get_migration_managers.return_value = [manager_1]
         app_config = AppConfig(app_name="music", migrations_folder_path="")
         get_app_config.return_value = app_config
         asyncio.run(manager_2.run(backwards=True))
-        self.run_sync("INSERT INTO musician VALUES (default, 'a', 'a');")
+        self.run_sync("INSERT INTO musician (name, label) VALUES ('a', 'a');")
 
         # Reverse
         asyncio.run(manager_1.run(backwards=True))
         self.assertTrue(not self.table_exists("musician"))
 
-    @engines_only("postgres")
+    @engines_only("postgres", "mysql")
     @patch.object(
         BaseMigrationManager, "get_migration_managers", new_callable=AsyncMock
     )
@@ -576,6 +625,9 @@ class TestMigrationManager(DBTestCase):
         Cockroach DB doesn't support dropping unique constraints with ALTER TABLE DROP CONSTRAINT.
         https://github.com/cockroachdb/cockroach/issues/42840
         """  # noqa: E501
+        self.run_sync("DROP TABLE IF EXISTS musician;")
+        self.run_sync("DROP TABLE IF EXISTS musician2;")
+
         manager_1 = MigrationManager()
         manager_1.add_table(class_name="Musician", tablename="musician")
         manager_1.add_column(
@@ -614,9 +666,16 @@ class TestMigrationManager(DBTestCase):
         app_config = AppConfig(app_name="music", migrations_folder_path="")
         get_app_config.return_value = app_config
         asyncio.run(manager_2.run(backwards=True))
-        self.run_sync("INSERT INTO musician VALUES (default, 'a', 'a');")
-        with self.assertRaises(asyncpg.exceptions.UniqueViolationError):
-            self.run_sync("INSERT INTO musician VALUES (default, 'a', 'a');")
+        self.run_sync("INSERT INTO musician (name, label) VALUES ('a', 'a');")
+        if engine_is("postgres"):
+            expected = asyncpg.exceptions.UniqueViolationError
+        else:
+            expected = pymysql.err.IntegrityError
+
+        with self.assertRaises(expected):
+            self.run_sync(
+                "INSERT INTO musician (name, label) VALUES ('a', 'a');"
+            )
 
         # Reverse
         asyncio.run(manager_1.run(backwards=True))
