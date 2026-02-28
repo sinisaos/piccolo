@@ -1287,7 +1287,7 @@ class MigrationManager:
                     },
                 )
                 # for MySQL just drop index because unique constraint
-                # is treated just as a unique index.
+                # is treated just as a unique index
                 if _Table._meta.db.engine_type == "mysql":
                     await self._run_query(
                         _Table.drop_index(
@@ -1358,7 +1358,7 @@ class MigrationManager:
 
                 for constraint in constraints:
                     # for MySQL just drop index because unique constraint
-                    # is treated just as a unique index.
+                    # is treated just as a unique index
                     if _Table._meta.db.engine_type == "mysql":
                         print(constraint.constraint_name)
                         await self._run_query(
