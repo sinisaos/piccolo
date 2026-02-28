@@ -5,8 +5,6 @@ from typing import Optional
 from unittest import IsolatedAsyncioTestCase, TestCase
 from unittest.mock import MagicMock, patch
 
-import pymysql
-
 from piccolo.apps.migrations.auto.migration_manager import MigrationManager
 from piccolo.apps.migrations.commands.base import BaseMigrationManager
 from piccolo.columns import Text, Varchar
@@ -28,6 +26,7 @@ from tests.base import AsyncMock, DBTestCase, engine_is, engines_only
 from tests.example_apps.music.tables import Band, Concert, Manager, Venue
 
 asyncpg = LazyLoader("asyncpg", globals(), "asyncpg")
+pymysql = LazyLoader("pymysql", globals(), "pymysql")
 
 
 class TestSortTableClasses(TestCase):
