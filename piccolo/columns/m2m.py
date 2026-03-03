@@ -80,23 +80,22 @@ class M2MSelect(Selectable):
         fk_2 = self.m2m._meta.secondary_foreign_key
         fk_2_name = fk_2._meta.db_column_name
         table_2 = fk_2._foreign_key_meta.resolved_references
-        table_2_name = table_2._meta.tablename
         table_2_name_with_schema = table_2._meta.get_formatted_tablename()
         table_2_pk_name = table_2._meta.primary_key._meta.db_column_name
 
-        # always unique aliases (safe for self-reference in MySQL)
-        alias_1 = f"inner_{table_1_name}_1"
-        alias_2 = f"inner_{table_2_name}_2"
+        # always use unique aliases for inner_select
+        alias_1 = f"inner_{fk_1_name}"
+        alias_2 = f"inner_{fk_2_name}"
 
         # self-reference table (if primary and secondary table are the same)
         if self.bidirectional:
             where_fk = fk_2_name
             where_pk = table_2_pk_name
-            target_alias = alias_1
+            unique_alias = alias_1
         else:
             where_fk = fk_1_name
             where_pk = table_1_pk_name
-            target_alias = alias_2
+            unique_alias = alias_2
 
         inner_select = f"""
             {m2m_table_name_with_schema}
@@ -112,7 +111,7 @@ class M2MSelect(Selectable):
                 return QueryString(
                     f"""
                     ARRAY(
-                        SELECT {target_alias}."{column}"
+                        SELECT {unique_alias}."{column}"
                         FROM {inner_select}
                     ) AS "{m2m_relationship_name}"
                 """
@@ -121,14 +120,14 @@ class M2MSelect(Selectable):
                 return QueryString(
                     f"""
                     ARRAY(
-                        SELECT {target_alias}."{table_2_pk_name}"
+                        SELECT {unique_alias}."{table_2_pk_name}"
                         FROM {inner_select}
                     ) AS "{m2m_relationship_name}"
                 """
                 )
             else:
                 columns = ", ".join(
-                    f'{target_alias}."{col._meta.db_column_name}"'
+                    f'{unique_alias}."{col._meta.db_column_name}"'
                     for col in self.columns
                 )
                 return QueryString(
@@ -151,7 +150,7 @@ class M2MSelect(Selectable):
             return QueryString(
                 f"""
                 (
-                    SELECT group_concat({target_alias}."{column}")
+                    SELECT group_concat({unique_alias}."{column}")
                     FROM {inner_select}
                 ) AS "{m2m_relationship_name} [M2M]"
             """
@@ -164,7 +163,7 @@ class M2MSelect(Selectable):
                     (
                         SELECT JSON_ARRAYAGG(inner_table.`{column}`)
                         FROM (
-                            SELECT {target_alias}.`{column}`
+                            SELECT {unique_alias}.`{column}`
                             FROM {inner_select}
                         ) AS inner_table
                     ) AS `{m2m_relationship_name}`
@@ -176,7 +175,7 @@ class M2MSelect(Selectable):
                     (
                         SELECT JSON_ARRAYAGG(inner_table.`{table_2_pk_name}`)
                         FROM (
-                            SELECT {target_alias}.`{table_2_pk_name}`
+                            SELECT {unique_alias}.`{table_2_pk_name}`
                             FROM {inner_select}
                         ) AS inner_table
                     ) AS `{m2m_relationship_name}`
@@ -188,7 +187,7 @@ class M2MSelect(Selectable):
                     for col in self.columns
                 )
                 columns = ", ".join(
-                    f"{target_alias}.`{col._meta.db_column_name}`"
+                    f"{unique_alias}.`{col._meta.db_column_name}`"
                     for col in self.columns
                 )
                 return QueryString(
