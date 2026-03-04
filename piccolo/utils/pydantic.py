@@ -341,21 +341,21 @@ def create_pydantic_model(
             **params,
         )
 
-        columns[column_name] = (_type, field)
+        # m2m fields
+        for item in table._meta.m2m_relationships:
+            column_name = item._meta.name
+            field = pydantic.Field(
+                json_schema_extra={
+                    # set to empty dict to prevent FK conflict in schema
+                    # for M2M select in Piccolo Admin
+                    "extra": {},
+                    "format": "m2m",
+                },
+                **params,
+            )
+            columns[column_name] = (list[Any], field)
 
-    # m2m fields
-    for item in table._meta.m2m_relationships:
-        column_name = item._meta.name
-        field = pydantic.Field(
-            json_schema_extra={
-                # set to empty dict to prevent FK conflict in schema
-                # for M2M select in Piccolo Admin
-                "extra": {},
-                "format": "m2m",
-            },
-            **params,
-        )
-        columns[column_name] = (list[Any], field)
+        columns[column_name] = (_type, field)
 
     pydantic_config = (
         pydantic_config.copy()
