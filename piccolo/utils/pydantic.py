@@ -108,6 +108,9 @@ def get_pydantic_value_type(column: Column) -> type:
     return value_type
 
 
+PARAMS: dict[str, Any] = {}
+
+
 def create_pydantic_model(
     table: type[Table],
     nested: Union[bool, tuple[ForeignKey, ...]] = False,
@@ -265,12 +268,11 @@ def create_pydantic_model(
 
         #######################################################################
 
-        params: dict[str, Any] = {}
         if is_optional:
-            params["default"] = None
+            PARAMS["default"] = None
 
         if column._meta.db_column_name != column._meta.name:
-            params["alias"] = column._meta.db_column_name
+            PARAMS["alias"] = column._meta.db_column_name
 
         extra: JsonDict = {
             "help_text": column._meta.help_text,
@@ -338,24 +340,24 @@ def create_pydantic_model(
 
         field = pydantic.Field(
             json_schema_extra={"extra": extra},
-            **params,
+            **PARAMS,
         )
 
-        # m2m fields
-        for item in table._meta.m2m_relationships:
-            column_name = item._meta.name
-            field = pydantic.Field(
-                json_schema_extra={
-                    # set to empty dict to prevent FK conflict in schema
-                    # for M2M select in Piccolo Admin
-                    "extra": {},
-                    "format": "m2m",
-                },
-                **params,
-            )
-            columns[column_name] = (list[Any], field)
-
         columns[column_name] = (_type, field)
+
+    # m2m fields
+    for item in table._meta.m2m_relationships:
+        column_name = item._meta.name
+        field = pydantic.Field(
+            json_schema_extra={
+                # set to empty dict to prevent FK conflict
+                # in schema for M2M select in Piccolo Admin
+                "extra": {},
+                "format": "m2m",
+            },
+            **PARAMS,
+        )
+        columns[column_name] = (list[Any], field)
 
     pydantic_config = (
         pydantic_config.copy()
