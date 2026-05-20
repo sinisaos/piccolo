@@ -1899,13 +1899,11 @@ class TestMigrationManager(DBTestCase):
         asyncio.run(manager.run())
 
         # check index exists
-        result = self.run_sync(
-            """
+        result = self.run_sync("""
             SELECT INDEX_NAME
             FROM INFORMATION_SCHEMA.STATISTICS
             WHERE TABLE_NAME = 'musician';
-            """
-        )
+            """)
         index_names = [r["INDEX_NAME"] for r in result]
         assert "musician_name_label" in index_names
         assert "PRIMARY" in index_names

@@ -308,91 +308,68 @@ class DBTestCase(TestCase):
         assert ENGINE is not None
 
         if ENGINE.engine_type in ("postgres", "cockroach"):
-            self.run_sync(
-                """
+            self.run_sync("""
                 CREATE TABLE manager (
                     id SERIAL PRIMARY KEY,
                     name VARCHAR(50)
-                );"""
-            )
-            self.run_sync(
-                """
+                );""")
+            self.run_sync("""
                 CREATE TABLE band (
                     id SERIAL PRIMARY KEY,
                     name VARCHAR(50),
                     manager INTEGER REFERENCES manager,
                     popularity SMALLINT
-                );"""
-            )
-            self.run_sync(
-                """
+                );""")
+            self.run_sync("""
                 CREATE TABLE ticket (
                     id SERIAL PRIMARY KEY,
                     price NUMERIC(5,2)
-                );"""
-            )
-            self.run_sync(
-                """
+                );""")
+            self.run_sync("""
                 CREATE TABLE poster (
                     id SERIAL PRIMARY KEY,
                     content TEXT
-                );"""
-            )
-            self.run_sync(
-                """
+                );""")
+            self.run_sync("""
                 CREATE TABLE shirt (
                     id SERIAL PRIMARY KEY,
                     size VARCHAR(1)
-                );"""
-            )
+                );""")
         elif ENGINE.engine_type == "sqlite":
-            self.run_sync(
-                """
+            self.run_sync("""
                 CREATE TABLE manager (
                     id INTEGER PRIMARY KEY,
                     name VARCHAR(50)
-                );"""
-            )
-            self.run_sync(
-                """
+                );""")
+            self.run_sync("""
                 CREATE TABLE band (
                     id INTEGER PRIMARY KEY,
                     name VARCHAR(50),
                     manager INTEGER REFERENCES manager,
                     popularity SMALLINT
-                );"""
-            )
-            self.run_sync(
-                """
+                );""")
+            self.run_sync("""
                 CREATE TABLE ticket (
                     id SERIAL PRIMARY KEY,
                     price NUMERIC(5,2)
-                );"""
-            )
-            self.run_sync(
-                """
+                );""")
+            self.run_sync("""
                 CREATE TABLE poster (
                     id SERIAL PRIMARY KEY,
                     content TEXT
-                );"""
-            )
-            self.run_sync(
-                """
+                );""")
+            self.run_sync("""
                 CREATE TABLE shirt (
                     id SERIAL PRIMARY KEY,
                     size VARCHAR(1)
-                );"""
-            )
+                );""")
         elif ENGINE.engine_type == "mysql":
-            self.run_sync(
-                """
+            self.run_sync("""
                 CREATE TABLE manager (
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     name VARCHAR(50)
-                );"""
-            )
-            self.run_sync(
-                """
+                );""")
+            self.run_sync("""
                 CREATE TABLE band (
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     name VARCHAR(50),
@@ -401,29 +378,22 @@ class DBTestCase(TestCase):
                     CONSTRAINT band_manager_fkey
                     FOREIGN KEY (manager)
                         REFERENCES manager(id)
-                );"""
-            )
-            self.run_sync(
-                """
+                );""")
+            self.run_sync("""
                 CREATE TABLE ticket (
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     price NUMERIC(5,2)
-                );"""
-            )
-            self.run_sync(
-                """
+                );""")
+            self.run_sync("""
                 CREATE TABLE poster (
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     content TEXT
-                );"""
-            )
-            self.run_sync(
-                """
+                );""")
+            self.run_sync("""
                 CREATE TABLE shirt (
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     size VARCHAR(1)
-                );"""
-            )
+                );""")
         else:
             raise Exception("Unrecognised engine")
 
@@ -431,16 +401,13 @@ class DBTestCase(TestCase):
         assert ENGINE is not None
 
         if ENGINE.engine_type == "cockroach":
-            id = self.run_sync(
-                """
+            id = self.run_sync("""
                 INSERT INTO manager (
                     name
                 ) VALUES (
                     'Guido'
-                ) RETURNING id;"""
-            )
-            self.run_sync(
-                f"""
+                ) RETURNING id;""")
+            self.run_sync(f"""
                 INSERT INTO band (
                     name,
                     manager,
@@ -449,19 +416,15 @@ class DBTestCase(TestCase):
                     'Pythonistas',
                     {id[0]["id"]},
                     1000
-                );"""
-            )
+                );""")
         else:
-            self.run_sync(
-                """
+            self.run_sync("""
                 INSERT INTO manager (
                     name
                 ) VALUES (
                     'Guido'
-                );"""
-            )
-            self.run_sync(
-                """
+                );""")
+            self.run_sync("""
                 INSERT INTO band (
                     name,
                     manager,
@@ -470,15 +433,13 @@ class DBTestCase(TestCase):
                     'Pythonistas',
                     1,
                     1000
-                );"""
-            )
+                );""")
 
     def insert_rows(self):
         assert ENGINE is not None
 
         if ENGINE.engine_type == "cockroach":
-            id = self.run_sync(
-                """
+            id = self.run_sync("""
                 INSERT INTO manager (
                     name
                 ) VALUES (
@@ -487,10 +448,8 @@ class DBTestCase(TestCase):
                     'Graydon'
                 ),(
                     'Mads'
-                ) RETURNING id;"""
-            )
-            self.run_sync(
-                f"""
+                ) RETURNING id;""")
+            self.run_sync(f"""
                 INSERT INTO band (
                     name,
                     manager,
@@ -507,11 +466,9 @@ class DBTestCase(TestCase):
                     'CSharps',
                     {id[2]["id"]},
                     10
-                );"""
-            )
+                );""")
         else:
-            self.run_sync(
-                """
+            self.run_sync("""
                 INSERT INTO manager (
                     name
                 ) VALUES (
@@ -520,10 +477,8 @@ class DBTestCase(TestCase):
                     'Graydon'
                 ),(
                     'Mads'
-                );"""
-            )
-            self.run_sync(
-                """
+                );""")
+            self.run_sync("""
                 INSERT INTO band (
                     name,
                     manager,
@@ -540,8 +495,7 @@ class DBTestCase(TestCase):
                     'CSharps',
                     3,
                     10
-                );"""
-            )
+                );""")
 
     def insert_many_rows(self, row_count=10000):
         """
@@ -562,8 +516,7 @@ class DBTestCase(TestCase):
             self.run_sync("DROP TABLE IF EXISTS shirt CASCADE;")
         elif ENGINE.engine_type == "mysql":
             # temporarily disabling foreign key checks for tests
-            self.run_sync(
-                """
+            self.run_sync("""
                 SET FOREIGN_KEY_CHECKS = 0;
                 DROP TABLE IF EXISTS band;
                 DROP TABLE IF EXISTS manager;
@@ -571,8 +524,7 @@ class DBTestCase(TestCase):
                 DROP TABLE IF EXISTS poster;
                 DROP TABLE IF EXISTS shirt;
                 SET FOREIGN_KEY_CHECKS = 1;
-                """
-            )
+                """)
         elif ENGINE.engine_type == "sqlite":
             self.run_sync("DROP TABLE IF EXISTS band;")
             self.run_sync("DROP TABLE IF EXISTS manager;")

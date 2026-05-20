@@ -108,30 +108,25 @@ class M2MSelect(Selectable):
         if engine_type in ("postgres", "cockroach"):
             if self.as_list:
                 column = self.columns[0]._meta.db_column_name
-                return QueryString(
-                    f"""
+                return QueryString(f"""
                     ARRAY(
                         SELECT {unique_alias}."{column}"
                         FROM {inner_select}
                     ) AS "{m2m_relationship_name}"
-                """
-                )
+                """)
             elif not self.serialisation_safe:
-                return QueryString(
-                    f"""
+                return QueryString(f"""
                     ARRAY(
                         SELECT {unique_alias}."{table_2_pk_name}"
                         FROM {inner_select}
                     ) AS "{m2m_relationship_name}"
-                """
-                )
+                """)
             else:
                 columns = ", ".join(
                     f'{unique_alias}."{col._meta.db_column_name}"'
                     for col in self.columns
                 )
-                return QueryString(
-                    f"""
+                return QueryString(f"""
                     (
                         SELECT JSON_AGG(results)
                         FROM (
@@ -139,27 +134,23 @@ class M2MSelect(Selectable):
                             FROM {inner_select}
                         ) AS results
                     ) AS "{m2m_relationship_name}"
-                """
-                )
+                """)
         elif engine_type == "sqlite":
             if len(self.columns) > 1 or not self.serialisation_safe:
                 column = table_2_pk_name
             else:
                 column = self.columns[0]._meta.db_column_name
 
-            return QueryString(
-                f"""
+            return QueryString(f"""
                 (
                     SELECT group_concat({unique_alias}."{column}")
                     FROM {inner_select}
                 ) AS "{m2m_relationship_name} [M2M]"
-            """
-            )
+            """)
         elif engine_type == "mysql":
             if self.as_list:
                 column = self.columns[0]._meta.db_column_name
-                return QueryString(
-                    f"""
+                return QueryString(f"""
                     (
                         SELECT JSON_ARRAYAGG(inner_table.`{column}`)
                         FROM (
@@ -167,11 +158,9 @@ class M2MSelect(Selectable):
                             FROM {inner_select}
                         ) AS inner_table
                     ) AS `{m2m_relationship_name}`
-                """
-                )
+                """)
             elif not self.serialisation_safe:
-                return QueryString(
-                    f"""
+                return QueryString(f"""
                     (
                         SELECT JSON_ARRAYAGG(inner_table.`{table_2_pk_name}`)
                         FROM (
@@ -179,8 +168,7 @@ class M2MSelect(Selectable):
                             FROM {inner_select}
                         ) AS inner_table
                     ) AS `{m2m_relationship_name}`
-                """
-                )
+                """)
             else:
                 json_fields = ", ".join(
                     f"'{col._meta.db_column_name}', inner_table.`{col._meta.db_column_name}`"  # noqa: E501
@@ -190,8 +178,7 @@ class M2MSelect(Selectable):
                     f"{unique_alias}.`{col._meta.db_column_name}`"
                     for col in self.columns
                 )
-                return QueryString(
-                    f"""
+                return QueryString(f"""
                     (
                         SELECT JSON_ARRAYAGG(
                             JSON_OBJECT({json_fields})
@@ -201,8 +188,7 @@ class M2MSelect(Selectable):
                             FROM {inner_select}
                         ) AS inner_table
                     ) AS `{m2m_relationship_name}`
-                """
-                )
+                """)
         else:
             raise ValueError(f"{engine_type} is an unrecognised engine type")
 

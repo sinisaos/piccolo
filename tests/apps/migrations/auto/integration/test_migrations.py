@@ -33,6 +33,7 @@ from piccolo.columns.column_types import (
     BigInt,
     BigSerial,
     Boolean,
+    Char,
     Date,
     Decimal,
     DoublePrecision,
@@ -276,6 +277,25 @@ class TestMigrations(MigrationTestCase):
                     x.is_nullable == "NO",
                     x.column_default
                     in ("''::character varying", "'':::STRING"),
+                ]
+            ),
+        )
+
+    @engines_skip("cockroach")
+    def test_char_column(self):
+        self._test_migrations(
+            table_snapshots=[
+                [self.table(column)]
+                for column in [
+                    Char(default="GB", length=2, null=True),
+                    Char(default="GB", length=2, null=False),
+                ]
+            ],
+            test_function=lambda x: all(
+                [
+                    x.data_type == "character",
+                    x.is_nullable == "NO",
+                    x.column_default in ("'GB'::bpchar", "'GB':::STRING"),
                 ]
             ),
         )
@@ -1464,8 +1484,7 @@ class TestTargetColumn(MigrationTestCase):
             self.assertTrue(table_class.table_exists().run_sync())
 
         # Make sure the constraint was created correctly.
-        response = self.run_sync(
-            """
+        response = self.run_sync("""
             SELECT EXISTS(
                 SELECT 1
                 FROM INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE CCU
@@ -1476,8 +1495,7 @@ class TestTargetColumn(MigrationTestCase):
                     AND CCU.TABLE_NAME = 'table_a'
                     AND CCU.COLUMN_NAME = 'name'
             )
-            """
-        )
+            """)
         self.assertTrue(response[0]["exists"])
 
 
