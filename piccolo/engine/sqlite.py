@@ -583,13 +583,14 @@ def dict_factory(cursor, row) -> dict:
 
 
 class SQLiteEngine(Engine[SQLiteTransaction]):
-    __slots__ = ("connection_kwargs",)
+    __slots__ = ("connection_kwargs", "_shared_connection", "pragmas")
 
     def __init__(
         self,
         path: str = "piccolo.sqlite",
         log_queries: bool = False,
         log_responses: bool = False,
+        pragmas: Optional[dict[str, str]] = None,
         **connection_kwargs,
     ) -> None:
         """
@@ -602,6 +603,8 @@ class SQLiteEngine(Engine[SQLiteTransaction]):
         :param log_responses:
             If ``True``, the raw response from each query is printed out.
             Useful for debugging.
+        :param pragmas:
+            A dictionary of SQLite pragmas to be set on the connection (e.g. {"journal_mode": "WAL"}).
         :param connection_kwargs:
             These are passed directly to the database adapter. We recommend
             setting ``timeout`` if you expect your application to process a
@@ -618,6 +621,10 @@ class SQLiteEngine(Engine[SQLiteTransaction]):
 
         self.log_queries = log_queries
         self.log_responses = log_responses
+
+        # Store pragmas dict
+        self.pragmas = pragmas or {}
+
         self.connection_kwargs = {
             **default_connection_kwargs,
             **connection_kwargs,
@@ -626,6 +633,9 @@ class SQLiteEngine(Engine[SQLiteTransaction]):
         self.current_transaction = contextvars.ContextVar(
             f"sqlite_current_transaction_{path}", default=None
         )
+
+        # Initialize the shared connection attribute
+        self._shared_connection: Optional[Connection] = None
 
         super().__init__(
             engine_type="sqlite",
@@ -696,7 +706,50 @@ class SQLiteEngine(Engine[SQLiteTransaction]):
         connection = await aiosqlite.connect(**self.connection_kwargs)
         connection.row_factory = dict_factory  # type: ignore
         await connection.execute("PRAGMA foreign_keys = 1")
+
+        # Apply custom pragmas
+        for key, value in self.pragmas.items():
+            await connection.execute(f"PRAGMA {key} = {value}")
+
         return connection
+
+    # A method to get or create a persistent shared connection
+    # for better performance
+    async def _get_shared_connection(self) -> Connection:
+        """
+        Returns a shared aiosqlite connection to prevent the overhead
+        of opening/closing connections for standard queries.
+        """
+        if self._shared_connection is None:
+            self._shared_connection = await aiosqlite.connect(
+                **self.connection_kwargs
+            )
+            self._shared_connection.row_factory = dict_factory  # type: ignore
+            await self._shared_connection.execute("PRAGMA foreign_keys = 1")
+
+            # Apply custom pragmas to shared connection
+            for key, value in self.pragmas.items():
+                await self._shared_connection.execute(
+                    f"PRAGMA {key} = {value}"
+                )
+
+        return self._shared_connection
+
+    # Method to close the shared connection
+    async def close_connection_pool(self):
+        """
+        Closes the shared connection. Call this on lifespan
+        to avoid dangling aiosqlite threads locking server.
+
+        .. code-block:: python
+            @asynccontextmanager
+            async def lifespan(_: FastAPI):
+                yield
+                await DB.close_connection_pool()
+        """
+        if self._shared_connection is not None:
+            await self._shared_connection.close()
+            self._shared_connection = None
 
     ###########################################################################
 
@@ -722,21 +775,21 @@ class SQLiteEngine(Engine[SQLiteTransaction]):
     ):
         if args is None:
             args = []
-        async with aiosqlite.connect(**self.connection_kwargs) as connection:
-            await connection.execute("PRAGMA foreign_keys = 1")
 
-            connection.row_factory = dict_factory  # type: ignore
-            async with connection.execute(query, args) as cursor:
-                await connection.commit()
+        # Use the shared connection instead of async with aiosqlite.connect
+        connection = await self._get_shared_connection()
 
-                if query_type == "insert" and self.get_version_sync() < 3.35:
-                    # We can't use the RETURNING clause on older versions
-                    # of SQLite.
-                    assert table is not None
-                    pk = await self._get_inserted_pk(cursor, table)
-                    return [{table._meta.primary_key._meta.db_column_name: pk}]
-                else:
-                    return await cursor.fetchall()
+        async with connection.execute(query, args) as cursor:
+            await connection.commit()
+
+            if query_type == "insert" and self.get_version_sync() < 3.35:
+                # We can't use the RETURNING clause on older versions
+                # of SQLite.
+                assert table is not None
+                pk = await self._get_inserted_pk(cursor, table)
+                return [{table._meta.primary_key._meta.db_column_name: pk}]
+            else:
+                return await cursor.fetchall()
 
     async def _run_in_existing_connection(
         self,

@@ -1,4 +1,6 @@
 import asyncio
+import os
+import threading
 
 from piccolo.engine.finder import engine_finder
 
@@ -38,6 +40,10 @@ async def drop_tables():
         )
 
 
+def sqlite_cleanup(status):
+    os._exit(status)
+
+
 def pytest_sessionstart(session):
     """
     Make sure all the tables have been dropped, just in case a previous test
@@ -54,3 +60,8 @@ def pytest_sessionfinish(session, exitstatus):
     https://docs.pytest.org/en/latest/reference.html#_pytest.hookspec.pytest_sessionfinish
     """
     print("Session finishing")
+
+    if ENGINE.engine_type == "sqlite":
+        # Shutting down the SQLite process
+        t = threading.Timer(0.5, sqlite_cleanup, args=[exitstatus])
+        t.start()
